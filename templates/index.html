@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WMS Bata</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:100vh;display:flex;}
+.sidebar{width:240px;min-height:100vh;background:rgba(255,255,255,0.03);border-right:1px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.07);}
+.sidebar-logo .brand{font-size:10px;font-weight:600;letter-spacing:3px;color:rgba(255,255,255,0.3);text-transform:uppercase;}
+.sidebar-logo h2{font-size:20px;font-weight:700;color:#fff;margin-top:4px;}
+.sidebar-logo h2 span{color:#dc2626;}
+.sidebar-logo .semana{margin-top:8px;padding:4px 10px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);border-radius:20px;font-size:11px;color:#fca5a5;display:inline-block;font-weight:600;}
+.nav{flex:1;padding:12px 0;}
+.nav-section{padding:16px 20px 6px;font-size:9px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.2);text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);transition:all .15s;border-left:2px solid transparent;}
+.nav-item:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.04);}
+.nav-item.active{color:#fff;background:rgba(220,38,38,0.1);border-left-color:#dc2626;}
+.nav-item .icon{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:rgba(220,38,38,0.2);color:#fca5a5;font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.07);}
+.user-info{display:flex;align-items:center;gap:10px;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#dc2626,#991b1b);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;}
+.user-name{font-size:12px;font-weight:600;color:#fff;}
+.user-role{font-size:10px;color:rgba(255,255,255,0.3);}
+.logout-btn{margin-left:auto;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.3);font-size:16px;padding:4px;transition:color .15s;text-decoration:none;}
+.logout-btn:hover{color:#dc2626;}
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;}
+.topbar{padding:16px 32px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.02);position:sticky;top:0;z-index:50;}
+.page-title{font-size:18px;font-weight:700;color:#fff;}
+.page-sub{font-size:12px;color:rgba(255,255,255,0.3);margin-top:2px;}
+.badge-edit{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);color:#fca5a5;}
+.badge-view{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.3);color:#94a3b8;}
+.content{padding:32px;flex:1;}
+.panel{display:none;}
+.panel.active{display:block;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px;}
+.kpi-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px;transition:border-color .2s;}
+.kpi-card:hover{border-color:rgba(220,38,38,0.3);}
+.kpi-label{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:8px;}
+.kpi-value{font-size:28px;font-weight:700;color:#fff;letter-spacing:-1px;}
+.kpi-sub{font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px;}
+.kpi-red .kpi-value{color:#dc2626;}
+.kpi-green .kpi-value{color:#22c55e;}
+.kpi-yellow .kpi-value{color:#eab308;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.section-title{font-size:16px;font-weight:700;color:#fff;}
+.section-sub{font-size:12px;color:rgba(255,255,255,0.3);margin-top:2px;}
+.table-wrap{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden;}
+.pres-table{width:100%;border-collapse:collapse;}
+.pres-table th{padding:12px 16px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);text-align:center;background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);}
+.pres-table th.left{text-align:left;}
+.pres-table td{padding:10px 16px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+.pres-table tr:last-child td{border-bottom:none;}
+.pres-table .day-label{text-align:left;font-weight:600;color:#e2e8f0;font-size:13px;}
+.pres-table .total-row td{background:rgba(220,38,38,0.08);font-weight:700;color:#fff;border-top:1px solid rgba(220,38,38,0.2);}
+.pres-table .total-col{font-weight:700;color:#fca5a5;}
+.editable{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 8px;width:90px;color:#fff;font-size:13px;text-align:center;font-family:'Inter',sans-serif;outline:none;transition:border-color .15s,background .15s;}
+.editable:focus{border-color:rgba(220,38,38,0.5);background:rgba(255,255,255,0.08);}
+.save-btn{padding:10px 24px;background:linear-gradient(135deg,#dc2626,#991b1b);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:transform .15s;}
+.save-btn:hover{transform:translateY(-1px);}
+.save-msg{font-size:12px;color:#22c55e;opacity:0;transition:opacity .3s;}
+.welcome-card{background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(220,38,38,0.05));border:1px solid rgba(220,38,38,0.2);border-radius:16px;padding:32px;margin-bottom:32px;display:flex;align-items:center;gap:24px;}
+.welcome-icon{font-size:48px;}
+.welcome-title{font-size:22px;font-weight:700;color:#fff;margin-bottom:6px;}
+.welcome-sub{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;}
+.modules-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;}
+.module-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px;cursor:pointer;transition:all .2s;}
+.module-card:hover{background:rgba(255,255,255,0.07);border-color:rgba(220,38,38,0.3);transform:translateY(-2px);}
+.module-icon{font-size:28px;margin-bottom:12px;}
+.module-name{font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;}
+.module-desc{font-size:11px;color:rgba(255,255,255,0.3);line-height:1.5;}
+.module-status{margin-top:12px;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 10px;border-radius:20px;display:inline-block;}
+.status-ready{background:rgba(34,197,94,0.15);color:#86efac;}
+.status-soon{background:rgba(234,179,8,0.15);color:#fde047;}
+.coming-soon{text-align:center;padding:80px 0;color:rgba(255,255,255,0.2);}
+.coming-soon .cs-icon{font-size:64px;margin-bottom:16px;}
+.coming-soon .cs-title{font-size:18px;font-weight:600;margin-bottom:8px;color:rgba(255,255,255,0.4);}
+.coming-soon .cs-sub{font-size:13px;}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Almacen Central</div>
+    <h2>WMS <span>BATA</span></h2>
+    <div class="semana">SEM 23</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+    <div class="nav-item active" onclick="showPanel('inicio',this)"><span class="icon">&#127968;</span> Inicio</div>
+    <div class="nav-section">Operaciones</div>
+    <div class="nav-item" onclick="showPanel('prescrito',this)"><span class="icon">&#128202;</span> Prescrito</div>
+    <div class="nav-item" onclick="showPanel('personal',this)"><span class="icon">&#128101;</span> Personal <span class="nav-badge">Proximo</span></div>
+    <div class="nav-section">Analisis</div>
+    <div class="nav-item" onclick="showPanel('wms',this)"><span class="icon">&#128260;</span> Cruce WMS <span class="nav-badge">Proximo</span></div>
+    <div class="nav-item" onclick="showPanel('atencion',this)"><span class="icon">&#128200;</span> % Atencion <span class="nav-badge">Proximo</span></div>
+    <div class="nav-item" onclick="showPanel('produccion',this)"><span class="icon">&#128230;</span> Produccion <span class="nav-badge">Proximo</span></div>
+    <div class="nav-section">Reportes</div>
+    <div class="nav-item" onclick="showPanel('ppt',this)"><span class="icon">&#128209;</span> Generar PPT <span class="nav-badge">Proximo</span></div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="avatar">{{ user[0]|upper }}</div>
+      <div>
+        <div class="user-name">{{ user }}</div>
+        <div class="user-role">{% if role == 'admin' %}Editor{% else %}Solo Lectura{% endif %}</div>
+      </div>
+      <a href="/logout" class="logout-btn" title="Cerrar sesion">&#9211;</a>
+    </div>
+  </div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="topbar-title">Dashboard</div>
+      <div class="page-sub" id="topbar-sub">Resumen general del sistema</div>
+    </div>
+    <div>
+      {% if role == 'admin' %}
+      <span class="badge-edit">&#9999; Modo Edicion</span>
+      {% else %}
+      <span class="badge-view">&#128065; Solo Lectura</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="content">
+
+    <div class="panel active" id="panel-inicio">
+      <div class="welcome-card">
+        <div class="welcome-icon">&#127981;</div>
+        <div>
+          <div class="welcome-title">Bienvenido, {{ user }} &#128075;</div>
+          <div class="welcome-sub">Sistema WMS de Gestion de Almacen · Picking and Packing<br>Selecciona un modulo para comenzar.</div>
+        </div>
+      </div>
+      <div class="section-header"><div><div class="section-title">Modulos del Sistema</div><div class="section-sub">Estado actual de cada modulo</div></div></div>
+      <div class="modules-grid">
+        <div class="module-card" onclick="showPanel('prescrito',null)"><div class="module-icon">&#128202;</div><div class="module-name">Prescrito</div><div class="module-desc">Ingreso manual de cantidades prescritas por dia y categoria</div><span class="module-status status-ready">Disponible</span></div>
+        <div class="module-card" onclick="showPanel('personal',null)"><div class="module-icon">&#128101;</div><div class="module-name">Personal</div><div class="module-desc">Control de asistencia y registro del equipo por semana</div><span class="module-status status-soon">En construccion</span></div>
+        <div class="module-card" onclick="showPanel('wms',null)"><div class="module-icon">&#128260;</div><div class="module-name">Cruce WMS</div><div class="module-desc">Analisis prescrito vs stock con generacion de olas</div><span class="module-status status-soon">En construccion</span></div>
+        <div class="module-card" onclick="showPanel('atencion',null)"><div class="module-icon">&#128200;</div><div class="module-name">% Atencion</div><div class="module-desc">Analisis de porcentaje de atencion por ruta y categoria</div><span class="module-status status-soon">En construccion</span></div>
+        <div class="module-card" onclick="showPanel('produccion',null)"><div class="module-icon">&#128230;</div><div class="module-name">Produccion</div><div class="module-desc">Analisis de produccion por operario y turno</div><span class="module-status status-soon">En construccion</span></div>
+        <div class="module-card" onclick="showPanel('ppt',null)"><div class="module-icon">&#128209;</div><div class="module-name">Generar PPT</div><div class="module-desc">KPI semanal automatico con formato oficial</div><span class="module-status status-soon">En construccion</span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-prescrito">
+      <div class="section-header">
+        <div><div class="section-title">&#128202; Tabla de Prescrito</div><div class="section-sub">Ingreso manual por dia y categoria</div></div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="save-msg" id="save-msg">Guardado</span>
+          {% if role == 'admin' %}<button class="save-btn" onclick="savePrescrito()">Guardar</button>{% endif %}
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Total General</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub">unidades prescritas</div></div>
+        <div class="kpi-card kpi-red"><div class="kpi-label">Calzado</div><div class="kpi-value" id="kpi-calzado">0</div></div>
+        <div class="kpi-card kpi-yellow"><div class="kpi-label">Insumos</div><div class="kpi-value" id="kpi-insumos">0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Accesorios</div><div class="kpi-value" id="kpi-accesorios">0</div></div>
+        <div class="kpi-card kpi-green"><div class="kpi-label">Doble Tramo</div><div class="kpi-value" id="kpi-doble">0</div></div>
+      </div>
+      <div class="table-wrap">
+        <table class="pres-table">
+          <thead>
+            <tr>
+              <th class="left">ATENCION</th>
+              <th>ACCESORIOS</th><th>CALZADO</th><th>INSUMOS</th>
+              <th>MUESTRAS</th><th>MATERIALES</th><th>DOBLE TRAMO</th>
+              <th>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="prescrito-body"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td class="day-label">TOTAL</td>
+              <td id="tot-accesorios">0</td><td id="tot-calzado">0</td>
+              <td id="tot-insumos">0</td><td id="tot-muestras">0</td>
+              <td id="tot-materiales">0</td><td id="tot-doble">0</td>
+              <td class="total-col" id="tot-general">0</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-personal"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Control de Personal en construccion</div></div></div>
+    <div class="panel" id="panel-wms"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Cruce WMS en construccion</div></div></div>
+    <div class="panel" id="panel-atencion"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">% Atencion en construccion</div></div></div>
+    <div class="panel" id="panel-produccion"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Produccion en construccion</div></div></div>
+    <div class="panel" id="panel-ppt"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Generador PPT en construccion</div></div></div>
+
+  </div>
+</div>
+
+<script>
+const IS_ADMIN = {{ 'true' if role == 'admin' else 'false' }};
+const DIAS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES'];
+const COLS = ['accesorios','calzado','insumos','muestras','materiales','doble'];
+let presData = {};
+
+const titles = {
+  inicio:['Dashboard','Resumen general del sistema'],
+  prescrito:['Prescrito','Ingreso manual de cantidades por dia'],
+  personal:['Control de Personal','Registro del equipo por semana'],
+  wms:['Cruce WMS','Analisis prescrito vs stock'],
+  atencion:['% Atencion','Atencion por ruta y categoria'],
+  produccion:['Produccion','Produccion por operario y turno'],
+  ppt:['Generar PPT','KPI semanal automatico']
+};
+
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('topbar-title').textContent = titles[name][0];
+  document.getElementById('topbar-sub').textContent = titles[name][1];
+  if(el) el.classList.add('active');
+}
+
+function fmt(n){return n?Number(n).toLocaleString('es-PE'):'0';}
+
+function buildPresTable(){
+  const tbody=document.getElementById('prescrito-body');
+  tbody.innerHTML='';
+  DIAS.forEach(dia=>{
+    const tr=document.createElement('tr');
+    let html=`<td class="day-label">${dia}</td>`;
+    COLS.forEach(col=>{
+      const val=(presData[dia]&&presData[dia][col])||'';
+      if(IS_ADMIN){
+        html+=`<td><input class="editable" type="number" min="0" value="${val}" oninput="updateCell('${dia}','${col}',this.value)" placeholder="0"></td>`;
+      } else {
+        html+=`<td>${val?Number(val).toLocaleString('es-PE'):'0'}</td>`;
+      }
+    });
+    const rowTotal=COLS.reduce((s,c)=>s+(Number((presData[dia]&&presData[dia][c])||0)),0);
+    html+=`<td class="total-col" id="row-total-${dia}">${fmt(rowTotal)}</td>`;
+    tr.innerHTML=html;
+    tbody.appendChild(tr);
+  });
+  updateTotals();
+}
+
+function updateCell(dia,col,val){
+  if(!presData[dia])presData[dia]={};
+  presData[dia][col]=Number(val)||0;
+  const rowTotal=COLS.reduce((s,c)=>s+(Number((presData[dia]&&presData[dia][c])||0)),0);
+  document.getElementById('row-total-'+dia).textContent=fmt(rowTotal);
+  updateTotals();
+}
+
+function updateTotals(){
+  let grand=0;
+  COLS.forEach(col=>{
+    const sum=DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d][col])||0)),0);
+    const el=document.getElementById('tot-'+col);
+    if(el)el.textContent=fmt(sum);
+    grand+=sum;
+  });
+  document.getElementById('tot-general').textContent=fmt(grand);
+  document.getElementById('kpi-total').textContent=fmt(grand);
+  document.getElementById('kpi-calzado').textContent=fmt(DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d]['calzado'])||0)),0));
+  document.getElementById('kpi-insumos').textContent=fmt(DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d]['insumos'])||0)),0));
+  document.getElementById('kpi-accesorios').textContent=fmt(DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d]['accesorios'])||0)),0));
+  document.getElementById('kpi-doble').textContent=fmt(DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d]['doble'])||0)),0));
+}
+
+async function loadPrescrito(){
+  const res=await fetch('/api/prescrito');
+  presData=await res.json();
+  buildPresTable();
+}
+
+async function savePrescrito(){
+  await fetch('/api/prescrito',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(presData)});
+  const msg=document.getElementById('save-msg');
+  msg.style.opacity='1';
+  setTimeout(()=>msg.style.opacity='0',2000);
+}
+
+loadPrescrito();
+</script>
+</body>
+</html>
