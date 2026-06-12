@@ -80,6 +80,14 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
 .coming-soon .cs-icon{font-size:64px;margin-bottom:16px;}
 .coming-soon .cs-title{font-size:18px;font-weight:600;margin-bottom:8px;color:rgba(255,255,255,0.4);}
 .coming-soon .cs-sub{font-size:13px;}
+.download-wrap{position:relative;display:inline-block;}
+.download-btn{padding:10px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;}
+.download-btn:hover{background:rgba(255,255,255,0.12);}
+.download-menu{display:none;position:absolute;right:0;top:110%;background:#1e1e2e;border:1px solid rgba(255,255,255,0.12);border-radius:10px;overflow:hidden;min-width:160px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.download-menu.open{display:block;}
+.download-menu a{display:flex;align-items:center;gap:10px;padding:11px 16px;font-size:13px;color:#e2e8f0;text-decoration:none;transition:background .15s;cursor:pointer;}
+.download-menu a:hover{background:rgba(255,255,255,0.06);}
+.download-menu a span{font-size:16px;}
 </style>
 </head>
 <body>
@@ -152,8 +160,16 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
       <div class="section-header">
         <div><div class="section-title">&#128202; Tabla de Prescrito</div><div class="section-sub">Ingreso manual por dia y categoria</div></div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <span class="save-msg" id="save-msg">Guardado</span>
+         <span class="save-msg" id="save-msg">Guardado</span>
           {% if role == 'admin' %}<button class="save-btn" onclick="savePrescrito()">Guardar</button>{% endif %}
+          <div class="download-wrap">
+            <button class="download-btn" onclick="toggleDownload()">&#11015; Descargar &#9660;</button>
+            <div class="download-menu" id="download-menu">
+              <a onclick="downloadPrescrito('excel')"><span>&#128209;</span> Excel (.xlsx)</a>
+              <a onclick="downloadPrescrito('csv')"><span>&#128196;</span> CSV (.csv)</a>
+              <a onclick="downloadPrescrito('pdf')"><span>&#128215;</span> PDF (.pdf)</a>
+            </div>
+          </div>
         </div>
       </div>
       <div class="kpi-grid">
@@ -283,6 +299,70 @@ async function savePrescrito(){
 }
 
 loadPrescrito();
+  function toggleDownload(){
+  document.getElementById('download-menu').classList.toggle('open');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.download-wrap')) document.getElementById('download-menu').classList.remove('open');
+});
+
+function downloadPrescrito(formato){
+  document.getElementById('download-menu').classList.remove('open');
+  const DIAS=['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES'];
+  const COLS=['accesorios','calzado','insumos','muestras','materiales','doble'];
+  const LABELS=['ACCESORIOS','CALZADO','INSUMOS','MUESTRAS','MATERIALES','DOBLE TRAMO'];
+
+  if(formato==='csv'){
+    let csv='ATENCION,'+LABELS.join(',')+',TOTAL\n';
+    DIAS.forEach(dia=>{
+      const vals=COLS.map(c=>Number((presData[dia]&&presData[dia][c])||0));
+      const total=vals.reduce((a,b)=>a+b,0);
+      csv+=dia+','+vals.join(',')+','+total+'\n';
+    });
+    const totals=COLS.map(c=>DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d][c])||0)),0));
+    csv+='TOTAL,'+totals.join(',')+','+totals.reduce((a,b)=>a+b,0)+'\n';
+    const blob=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='prescrito.csv';
+    a.click();
+
+  } else if(formato==='excel'){
+    let csv='ATENCION\t'+LABELS.join('\t')+'\tTOTAL\n';
+    DIAS.forEach(dia=>{
+      const vals=COLS.map(c=>Number((presData[dia]&&presData[dia][c])||0));
+      const total=vals.reduce((a,b)=>a+b,0);
+      csv+=dia+'\t'+vals.join('\t')+'\t'+total+'\n';
+    });
+    const totals=COLS.map(c=>DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d][c])||0)),0));
+    csv+='TOTAL\t'+totals.join('\t')+'\t'+totals.reduce((a,b)=>a+b,0)+'\n';
+    const blob=new Blob(["\ufeff"+csv],{type:'application/vnd.ms-excel'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='prescrito.xls';
+    a.click();
+
+  } else if(formato==='pdf'){
+    const win=window.open('','_blank');
+    const DIAS2=['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES'];
+    let rows='';
+    DIAS2.forEach(dia=>{
+      const vals=COLS.map(c=>Number((presData[dia]&&presData[dia][c])||0));
+      const total=vals.reduce((a,b)=>a+b,0);
+      rows+=`<tr><td>${dia}</td>${vals.map(v=>`<td>${v.toLocaleString('es-PE')}</td>`).join('')}<td><b>${total.toLocaleString('es-PE')}</b></td></tr>`;
+    });
+    const totals=COLS.map(c=>DIAS2.reduce((s,d)=>s+(Number((presData[d]&&presData[d][c])||0)),0));
+    const grand=totals.reduce((a,b)=>a+b,0);
+    rows+=`<tr style="background:#f0f0f0;font-weight:bold"><td>TOTAL</td>${totals.map(v=>`<td>${v.toLocaleString('es-PE')}</td>`).join('')}<td>${grand.toLocaleString('es-PE')}</td></tr>`;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Prescrito</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px;}h2{color:#991b1b;}table{width:100%;border-collapse:collapse;margin-top:16px;}th{background:#991b1b;color:#fff;padding:8px;font-size:11px;}td{padding:7px 8px;border:1px solid #ddd;text-align:center;font-size:12px;}tr:nth-child(even){background:#fafafa;}</style>
+    </head><body><h2>Tabla de Prescrito — WMS BATA</h2>
+    <table><thead><tr><th>ATENCION</th>${LABELS.map(l=>`<th>${l}</th>`).join('')}<th>TOTAL</th></tr></thead>
+    <tbody>${rows}</tbody></table></body></html>`);
+    win.document.close();
+    setTimeout(()=>win.print(),500);
+  }
+}
 </script>
 </body>
 </html>
