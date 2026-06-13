@@ -125,7 +125,7 @@ def download_prescrito_excel():
         ws.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_start+1)
         ws.merge_cells(start_row=2, start_column=col_start, end_row=2, end_column=col_start+1)
         c1 = ws.cell(row=1, column=col_start, value=title)
-       cs(c1, "000000", "FFFFFF", bold=False, size=9)
+        cs(c1, "000000", "FFFFFF", bold=False, size=9)
         c2 = ws.cell(row=2, column=col_start, value=val)
         cs(c2, "000000", color, bold=True, size=14)
 
@@ -185,6 +185,107 @@ def download_prescrito_excel():
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name="prescrito_wms_bata.xlsx",
+                     as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+@app.route("/api/personal", methods=["GET"])
+@login_required
+def get_personal():
+    data = load_data()
+    return jsonify(data.get("personal", []))
+
+@app.route("/api/personal", methods=["POST"])
+@login_required
+@admin_required
+def save_personal():
+    data = load_data()
+    data["personal"] = request.json
+    save_data(data)
+    return jsonify({"ok": True})
+
+@app.route("/api/personal/excel")
+@login_required
+def download_personal_excel():
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    data = load_data()
+    personal = data.get("personal", [])
+    semana = request.args.get("semana", "")
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Personal"
+
+    rojo = "991B1B"
+    rojo_m = "7F1D1D"
+    blanco = "FFFFFF"
+    negro = "111827"
+    gris = "F9FAFB"
+
+    thin = Side(style="thin", color="E5E7EB")
+    border = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+    def cs(cell, bg, fg="FFFFFF", bold=False, size=10, align="center"):
+        cell.fill = PatternFill("solid", fgColor=bg)
+        cell.font = Font(bold=bold, color=fg, size=size, name="Calibri")
+        cell.alignment = Alignment(horizontal=align, vertical="center")
+        cell.border = border
+
+    # Cabecera titulo
+    ws.merge_cells("A1:L1")
+    c = ws["A1"]
+    c.value = f"CONTROL DE PERSONAL — {semana}"
+    cs(c, rojo, blanco, bold=True, size=13)
+    ws.row_dimensions[1].height = 24
+
+    # Cabeceras columnas
+    headers = ["N°", "DNI", "APELLIDOS Y NOMBRE", "AREA", "PUESTO", "ENCARGADO", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "AREA"]
+    for i, h in enumerate(headers, 1):
+        c = ws.cell(row=2, column=i, value=h)
+        cs(c, rojo_m, blanco, bold=True, size=9)
+    ws.row_dimensions[2].height = 18
+
+    COLORES_VAL = {
+        "SI": ("D1FAE5", "065F46"),
+        "NO": ("FEE2E2", "991B1B"),
+        "VACACIONES": ("FEF3C7", "92400E"),
+        "SUSPENDIDO": ("EDE9FE", "5B21B6"),
+        "D.M": ("DBEAFE", "1E40AF"),
+        "C.M": ("DBEAFE", "1E40AF"),
+        "CUMPLEAÑOS": ("DBEAFE", "1E40AF"),
+    }
+
+    for row_i, p in enumerate(personal, 3):
+        bg = gris if row_i % 2 == 0 else blanco
+        vals_fijos = [
+            row_i - 2, p.get("dni",""), p.get("nombre",""),
+            p.get("area",""), p.get("puesto",""), p.get("encargado","")
+        ]
+        aligns = ["center","center","left","left","left","left"]
+        for ci, (v, al) in enumerate(zip(vals_fijos, aligns), 1):
+            cc = ws.cell(row=row_i, column=ci, value=v)
+            cs(cc, bg, negro, size=10, align=al)
+
+        dias_keys = [f"{semana}-{i}" for i in range(6)]
+        for ci, dk in enumerate(dias_keys, 7):
+            val = (p.get("dias") or {}).get(dk, "")
+            col_bg, col_fg = COLORES_VAL.get(val.upper() if val else "", (bg, negro))
+            cc = ws.cell(row=row_i, column=ci, value=val)
+            cs(cc, col_bg, col_fg, bold=bool(val), size=10)
+
+        area_abrev = p.get("area_abrev", "")
+        cc = ws.cell(row=row_i, column=13, value=area_abrev)
+        cs(cc, bg, negro, size=10)
+        ws.row_dimensions[row_i].height = 18
+
+    anchos = [5, 12, 28, 20, 20, 22, 10, 10, 10, 10, 10, 10, 12]
+    for i, w in enumerate(anchos, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(output, download_name="personal_wms_bata.xlsx",
                      as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
