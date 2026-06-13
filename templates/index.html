@@ -80,6 +80,22 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
 .coming-soon .cs-icon{font-size:64px;margin-bottom:16px;}
 .coming-soon .cs-title{font-size:18px;font-weight:600;margin-bottom:8px;color:rgba(255,255,255,0.4);}
 .coming-soon .cs-sub{font-size:13px;}
+.filtro-btn{padding:6px 14px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.filtro-btn:hover{background:rgba(255,255,255,0.1);color:#fff;}
+.filtro-btn.active{background:rgba(220,38,38,0.2);border-color:rgba(220,38,38,0.5);color:#fca5a5;}
+.modal-input{width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;font-family:'Inter',sans-serif;outline:none;}
+.modal-input:focus{border-color:rgba(220,38,38,0.5);}
+.modal-input option{background:#1e1e2e;color:#fff;}
+.p-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;}
+.p-si{background:rgba(34,197,94,0.15);color:#86efac;}
+.p-no{background:rgba(220,38,38,0.15);color:#fca5a5;}
+.p-vac{background:rgba(234,179,8,0.15);color:#fde047;}
+.p-sus{background:rgba(167,139,250,0.15);color:#a78bfa;}
+.p-dm{background:rgba(96,165,250,0.15);color:#60a5fa;}
+.p-otros{background:rgba(100,116,139,0.15);color:#94a3b8;}
+.area-emb{background:rgba(234,179,8,0.2);color:#fde047;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
+.area-pick{background:rgba(249,115,22,0.2);color:#fb923c;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
+.area-otros{background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
 .download-wrap{position:relative;display:inline-block;}
 .download-btn{padding:10px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;}
 .download-btn:hover{background:rgba(255,255,255,0.12);}
@@ -203,7 +219,77 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
       </div>
     </div>
 
-    <div class="panel" id="panel-personal"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Control de Personal en construccion</div></div></div>
+   <div class="panel" id="panel-personal">
+  <div class="section-header">
+    <div><div class="section-title">&#128101; Control de Personal</div><div class="section-sub">Asistencia semanal del equipo</div></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="save-msg" id="save-msg-personal">Guardado</span>
+      {% if role == 'admin' %}<button class="save-btn" onclick="savePersonal()">Guardar</button>{% endif %}
+      <div class="download-wrap">
+        <button class="download-btn" onclick="toggleDownloadPersonal()">&#11015; Descargar &#9660;</button>
+        <div class="download-menu" id="download-menu-personal">
+          <a onclick="downloadPersonal('excel')"><span>&#128209;</span> Excel (.xlsx)</a>
+          <a onclick="downloadPersonal('csv')"><span>&#128196;</span> CSV (.csv)</a>
+          <a onclick="downloadPersonal('pdf')"><span>&#128215;</span> PDF (.pdf)</a>
+        </div>
+      </div>
+      {% if role == 'admin' %}<button class="save-btn" style="background:linear-gradient(135deg,#166534,#14532d);" onclick="showAddPersonal()">+ Agregar</button>{% endif %}
+    </div>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
+    <div class="kpi-card"><div class="kpi-label">Total Esperado</div><div class="kpi-value" id="kpi-p-total">49</div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-label">Asistio</div><div class="kpi-value" id="kpi-p-asistio">0</div></div>
+    <div class="kpi-card kpi-red"><div class="kpi-label">Faltos</div><div class="kpi-value" id="kpi-p-faltos">0</div></div>
+    <div class="kpi-card kpi-yellow"><div class="kpi-label">Vacaciones</div><div class="kpi-value" id="kpi-p-vacaciones">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">Suspendidos</div><div class="kpi-value" id="kpi-p-suspendidos" style="color:#a78bfa;">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">D.M/C.M/Cumple</div><div class="kpi-value" id="kpi-p-dm" style="color:#60a5fa;">0</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:1px;">Semana</span>
+      <input type="week" id="semana-picker" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;padding:6px 10px;font-size:13px;font-family:inherit;" onchange="cambiarSemana(this.value)">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:1px;">Ver dia</span>
+      <select id="dia-selector" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;padding:6px 10px;font-size:13px;font-family:inherit;" onchange="renderPersonalTable()">
+        <option value="todos">Todos los dias</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+    <button class="filtro-btn active" onclick="filtrarPersonal('todos',this)">Todos</button>
+    <button class="filtro-btn" onclick="filtrarPersonal('SI',this)">Asistio</button>
+    <button class="filtro-btn" onclick="filtrarPersonal('NO',this)">Faltos</button>
+    <button class="filtro-btn" onclick="filtrarPersonal('VACACIONES',this)">Vacaciones</button>
+    <button class="filtro-btn" onclick="filtrarPersonal('SUSPENDIDO',this)">Suspendidos</button>
+    <button class="filtro-btn" onclick="filtrarPersonal('DM',this)">D.M/C.M/Cumple</button>
+  </div>
+  <div class="table-wrap" style="overflow-x:auto;">
+    <table class="pres-table" id="personal-table">
+      <thead id="personal-thead"></thead>
+      <tbody id="personal-tbody"></tbody>
+    </table>
+  </div>
+  <div id="modal-personal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#1e1e2e;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:32px;width:480px;max-width:95vw;">
+      <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;">Agregar Personal</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">DNI</label><input type="text" id="new-dni" class="modal-input" placeholder="12345678"></div>
+        <div><label style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">Apellidos y Nombre</label><input type="text" id="new-nombre" class="modal-input" placeholder="APELLIDO NOMBRE"></div>
+        <div><label style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">Area</label>
+          <select id="new-area" class="modal-input"><option>EMBALAJE DIA ACT.</option><option>PICKING DIA ACT.</option><option>LOGISTICA INVERSA</option><option>DESPACHO</option><option>LI</option></select></div>
+        <div><label style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">Puesto</label><input type="text" id="new-puesto" class="modal-input" value="AYUDANTE DE ALMACEN"></div>
+        <div><label style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">Encargado</label><input type="text" id="new-encargado" class="modal-input" placeholder="NOMBRE ENCARGADO"></div>
+        <div><label style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">Area abrev.</label>
+          <select id="new-area-abrev" class="modal-input"><option>EMBALAJE</option><option>PICKING</option><option>LI</option><option>DESPACHO</option></select></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+        <button onclick="closeAddPersonal()" style="padding:10px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="addPersonal()" style="padding:10px 20px;background:linear-gradient(135deg,#dc2626,#991b1b);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Agregar</button>
+      </div>
+    </div>
+  </div>
+</div>
     <div class="panel" id="panel-wms"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Cruce WMS en construccion</div></div></div>
     <div class="panel" id="panel-atencion"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">% Atencion en construccion</div></div></div>
     <div class="panel" id="panel-produccion"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Produccion en construccion</div></div></div>
@@ -297,7 +383,263 @@ async function savePrescrito(){
   msg.style.opacity='1';
   setTimeout(()=>msg.style.opacity='0',2000);
 }
+// ============ PERSONAL ============
+let personalData = [];
+let semanaActual = '';
+let diasSemana = [];
+let filtroActual = 'todos';
+const VALORES_CONTEO = ['SI','NO','VACACIONES','SUSPENDIDO','D.M','C.M','CUMPLEAÑOS'];
 
+function getWeekDates(weekStr){
+  if(!weekStr) return [];
+  const [year, week] = weekStr.split('-W').map(Number);
+  const jan4 = new Date(year, 0, 4);
+  const startOfWeek = new Date(jan4);
+  startOfWeek.setDate(jan4.getDate() - (jan4.getDay() || 7) + 1 + (week - 1) * 7);
+  const dias = [];
+  const nombres = ['LUN','MAR','MIE','JUE','VIE','SAB'];
+  for(let i=0;i<6;i++){
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    dias.push({key: `${year}-${weekStr.split('-W')[1]}-${i}`, label: `${nombres[i]} ${dd}/${mm}`, date: d});
+  }
+  return dias;
+}
+
+function initSemana(){
+  const now = new Date();
+  const year = now.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const week = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+  const weekStr = `${year}-W${String(week).padStart(2,'0')}`;
+  document.getElementById('semana-picker').value = weekStr;
+  cambiarSemana(weekStr);
+}
+
+function cambiarSemana(weekStr){
+  semanaActual = weekStr;
+  diasSemana = getWeekDates(weekStr);
+  const sel = document.getElementById('dia-selector');
+  sel.innerHTML = '<option value="todos">Todos los dias</option>';
+  diasSemana.forEach((d,i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = d.label;
+    sel.appendChild(opt);
+  });
+  if(!personalData.length) loadPersonal();
+  else renderPersonalTable();
+}
+
+function badgeVal(v){
+  if(!v||v===''||v==='-') return `<span class="p-badge p-otros">—</span>`;
+  const u = v.toUpperCase().trim();
+  if(u==='SI') return `<span class="p-badge p-si">SI</span>`;
+  if(u==='NO') return `<span class="p-badge p-no">NO</span>`;
+  if(u==='VACACIONES') return `<span class="p-badge p-vac">VACACIONES</span>`;
+  if(u==='SUSPENDIDO') return `<span class="p-badge p-sus">SUSPENDIDO</span>`;
+  if(['D.M','C.M','CUMPLEAÑOS'].includes(u)) return `<span class="p-badge p-dm">${v}</span>`;
+  return `<span class="p-badge p-otros">${v}</span>`;
+}
+
+function areaBadge(a){
+  if(!a) return '';
+  const u = a.toUpperCase();
+  if(u.includes('EMBALAJE')) return `<span class="area-emb">EMBALAJE</span>`;
+  if(u.includes('PICKING')) return `<span class="area-pick">PICKING</span>`;
+  return `<span class="area-otros">${a}</span>`;
+}
+
+function renderPersonalTable(){
+  const diaIdx = document.getElementById('dia-selector').value;
+  const mostrarDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
+
+  // Cabecera
+  const thead = document.getElementById('personal-thead');
+  let hhtml = '<tr><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:120px">AREA</th><th class="left" style="min-width:80px">AREA</th>';
+  mostrarDias.forEach(d => { hhtml += `<th style="min-width:100px">${d.label}</th>`; });
+  hhtml += '</tr>';
+  thead.innerHTML = hhtml;
+
+  // Filtrar
+  let filtered = personalData;
+  if(filtroActual !== 'todos'){
+    filtered = personalData.filter(p => {
+      return diasSemana.some(d => {
+        const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
+        if(filtroActual === 'SI') return v === 'SI';
+        if(filtroActual === 'NO') return v === 'NO';
+        if(filtroActual === 'VACACIONES') return v === 'VACACIONES';
+        if(filtroActual === 'SUSPENDIDO') return v === 'SUSPENDIDO';
+        if(filtroActual === 'DM') return ['D.M','C.M','CUMPLEAÑOS'].includes(v);
+        return false;
+      });
+    });
+  }
+
+  // Cuerpo
+  const tbody = document.getElementById('personal-tbody');
+  let bhtml = '';
+  filtered.forEach((p, idx) => {
+    bhtml += `<tr><td style="text-align:left;color:rgba(255,255,255,0.4);font-size:12px;">${idx+1}</td>
+      <td style="text-align:left;font-size:12px;color:rgba(255,255,255,0.6);">${p.dni}</td>
+      <td style="text-align:left;font-weight:600;font-size:13px;">${p.nombre}</td>
+      <td style="text-align:left;">${areaBadge(p.area)}</td>
+      <td style="text-align:left;">${areaBadge(p.area_abrev)}</td>`;
+    mostrarDias.forEach(d => {
+      const val = (p.dias && p.dias[d.key]) || '';
+      const IS_ADMIN_JS = document.querySelector('.badge-edit') !== null;
+      if(IS_ADMIN_JS){
+        bhtml += `<td><select class="p-select" onchange="updatePersonalDia(${p.id},'${d.key}',this.value)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;padding:4px 6px;font-size:11px;font-family:inherit;width:100px;">
+          <option value="">—</option>
+          <option value="SI" ${val==='SI'?'selected':''}>SI</option>
+          <option value="NO" ${val==='NO'?'selected':''}>NO</option>
+          <option value="VACACIONES" ${val==='VACACIONES'?'selected':''}>VACACIONES</option>
+          <option value="SUSPENDIDO" ${val==='SUSPENDIDO'?'selected':''}>SUSPENDIDO</option>
+          <option value="D.M" ${val==='D.M'?'selected':''}>D.M</option>
+          <option value="C.M" ${val==='C.M'?'selected':''}>C.M</option>
+          <option value="CUMPLEAÑOS" ${val==='CUMPLEAÑOS'?'selected':''}>CUMPLEAÑOS</option>
+        </select></td>`;
+      } else {
+        bhtml += `<td>${badgeVal(val)}</td>`;
+      }
+    });
+    bhtml += '</tr>';
+  });
+  tbody.innerHTML = bhtml;
+
+  updateKpisPersonal();
+}
+
+function updateKpisPersonal(){
+  const diaIdx = document.getElementById('dia-selector').value;
+  const refDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
+  const firstDia = refDias[0];
+  if(!firstDia) return;
+
+  let asistio=0, faltos=0, vac=0, sus=0, dm=0;
+  personalData.forEach(p => {
+    refDias.forEach(d => {
+      const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
+      if(!VALORES_CONTEO.includes(v)) return;
+      if(v==='SI') asistio++;
+      else if(v==='NO') faltos++;
+      else if(v==='VACACIONES') vac++;
+      else if(v==='SUSPENDIDO') sus++;
+      else if(['D.M','C.M','CUMPLEAÑOS'].includes(v)) dm++;
+    });
+  });
+  if(diaIdx==='todos'){
+    const n = refDias.length || 1;
+    asistio=Math.round(asistio/n); faltos=Math.round(faltos/n);
+    vac=Math.round(vac/n); sus=Math.round(sus/n); dm=Math.round(dm/n);
+  }
+  document.getElementById('kpi-p-asistio').textContent = asistio;
+  document.getElementById('kpi-p-faltos').textContent = faltos;
+  document.getElementById('kpi-p-vacaciones').textContent = vac;
+  document.getElementById('kpi-p-suspendidos').textContent = sus;
+  document.getElementById('kpi-p-dm').textContent = dm;
+}
+
+function filtrarPersonal(tipo, btn){
+  filtroActual = tipo;
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderPersonalTable();
+}
+
+function updatePersonalDia(id, diaKey, val){
+  const p = personalData.find(x => x.id === id);
+  if(!p) return;
+  if(!p.dias) p.dias = {};
+  p.dias[diaKey] = val;
+  updateKpisPersonal();
+}
+
+async function loadPersonal(){
+  const res = await fetch('/api/personal');
+  personalData = await res.json();
+  if(!personalData.length) loadPersonalFromDefault();
+  else renderPersonalTable();
+}
+
+function loadPersonalFromDefault(){
+  personalData = [];
+  renderPersonalTable();
+}
+
+async function savePersonal(){
+  await fetch('/api/personal', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(personalData)});
+  const msg = document.getElementById('save-msg-personal');
+  msg.style.opacity='1';
+  setTimeout(()=>msg.style.opacity='0', 2000);
+}
+
+function showAddPersonal(){
+  const m = document.getElementById('modal-personal');
+  m.style.display='flex';
+}
+function closeAddPersonal(){
+  document.getElementById('modal-personal').style.display='none';
+}
+function addPersonal(){
+  const dni = document.getElementById('new-dni').value.trim();
+  const nombre = document.getElementById('new-nombre').value.trim();
+  if(!dni||!nombre){alert('DNI y Nombre son obligatorios');return;}
+  const nuevo = {
+    id: Date.now(),
+    dni, nombre,
+    area: document.getElementById('new-area').value,
+    puesto: document.getElementById('new-puesto').value,
+    encargado: document.getElementById('new-encargado').value,
+    area_abrev: document.getElementById('new-area-abrev').value,
+    dias: {}
+  };
+  personalData.push(nuevo);
+  closeAddPersonal();
+  renderPersonalTable();
+}
+
+function toggleDownloadPersonal(){
+  document.getElementById('download-menu-personal').classList.toggle('open');
+}
+function downloadPersonal(fmt){
+  document.getElementById('download-menu-personal').classList.remove('open');
+  if(fmt==='excel') window.location.href='/api/personal/excel?semana='+semanaActual;
+  else if(fmt==='csv'){
+    let csv='N°,DNI,APELLIDOS Y NOMBRE,AREA,AREA ABREV';
+    diasSemana.forEach(d=>csv+=','+d.label);
+    csv+='\n';
+    personalData.forEach((p,i)=>{
+      csv+=`${i+1},${p.dni},"${p.nombre}","${p.area}","${p.area_abrev||''}"`;
+      diasSemana.forEach(d=>csv+=','+(p.dias&&p.dias[d.key]||''));
+      csv+='\n';
+    });
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='personal.csv';a.click();
+  } else if(fmt==='pdf'){
+    const win=window.open('','_blank');
+    let rows='';
+    personalData.forEach((p,i)=>{
+      rows+=`<tr><td>${i+1}</td><td>${p.dni}</td><td>${p.nombre}</td><td>${p.area}</td>`;
+      diasSemana.forEach(d=>rows+=`<td>${p.dias&&p.dias[d.key]||'—'}</td>`);
+      rows+='</tr>';
+    });
+    let ths='<th>N°</th><th>DNI</th><th>APELLIDOS Y NOMBRE</th><th>AREA</th>';
+    diasSemana.forEach(d=>ths+=`<th>${d.label}</th>`);
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Personal</title>
+    <style>body{font-family:Arial;padding:20px;font-size:11px;}h2{color:#991b1b;}table{width:100%;border-collapse:collapse;}th{background:#991b1b;color:#fff;padding:6px;text-align:center;font-size:10px;}td{padding:5px 6px;border:1px solid #ddd;text-align:center;}td:nth-child(3){text-align:left;}tr:nth-child(even)td{background:#fef2f2;}</style>
+    </head><body><h2>Control de Personal — WMS BATA</h2><table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    win.document.close();setTimeout(()=>win.print(),500);
+  }
+}
+
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#download-menu-personal')&&!e.target.closest('[onclick="toggleDownloadPersonal()"]'))
+    document.getElementById('download-menu-personal')&&document.getElementById('download-menu-personal').classList.remove('open');
+});
 loadPrescrito();
   function toggleDownload(){
   document.getElementById('download-menu').classList.toggle('open');
