@@ -233,7 +233,13 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
           <a onclick="downloadPersonal('pdf')"><span>&#128215;</span> PDF (.pdf)</a>
         </div>
       </div>
-      {% if role == 'admin' %}<button class="save-btn" style="background:linear-gradient(135deg,#166534,#14532d);" onclick="showAddPersonal()">+ Agregar</button>{% endif %}
+    {% if role == 'admin' %}
+      <button class="save-btn" style="background:linear-gradient(135deg,#166534,#14532d);" onclick="showAddPersonal()">+ Agregar</button>
+      <label style="padding:10px 20px;background:linear-gradient(135deg,#1d4ed8,#1e40af);border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+        &#128194; Importar Excel
+        <input type="file" accept=".xlsx" style="display:none;" onchange="importarPersonal(this)">
+      </label>
+      {% endif %}
     </div>
   </div>
   <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
@@ -640,7 +646,22 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('#download-menu-personal')&&!e.target.closest('[onclick="toggleDownloadPersonal()"]'))
     document.getElementById('download-menu-personal')&&document.getElementById('download-menu-personal').classList.remove('open');
 });
-loadPrescrito();
+async function importarPersonal(input){
+  const file = input.files[0];
+  if(!file) return;
+  const fd = new FormData();
+  fd.append('archivo', file);
+  const res = await fetch('/api/personal/importar', {method:'POST', body: fd});
+  const data = await res.json();
+  if(data.ok){
+    alert('Personal cargado: ' + data.total + ' personas');
+    loadPersonal();
+  } else {
+    alert('Error: ' + (data.error || 'desconocido'));
+  }
+  input.value = '';
+}
+  loadPrescrito();
   function toggleDownload(){
   document.getElementById('download-menu').classList.toggle('open');
 }
