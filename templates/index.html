@@ -328,20 +328,7 @@ function downloadPrescrito(formato){
     a.click();
 
   } else if(formato==='excel'){
-    let csv='ATENCION\t'+LABELS.join('\t')+'\tTOTAL\n';
-    DIAS.forEach(dia=>{
-      const vals=COLS.map(c=>Number((presData[dia]&&presData[dia][c])||0));
-      const total=vals.reduce((a,b)=>a+b,0);
-      csv+=dia+'\t'+vals.join('\t')+'\t'+total+'\n';
-    });
-    const totals=COLS.map(c=>DIAS.reduce((s,d)=>s+(Number((presData[d]&&presData[d][c])||0)),0));
-    csv+='TOTAL\t'+totals.join('\t')+'\t'+totals.reduce((a,b)=>a+b,0)+'\n';
-    const blob=new Blob(["\ufeff"+csv],{type:'application/vnd.ms-excel'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download='prescrito.xls';
-    a.click();
-
+    window.location.href='/api/prescrito/excel';
   } else if(formato==='pdf'){
     const win=window.open('','_blank');
     const DIAS2=['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES'];
