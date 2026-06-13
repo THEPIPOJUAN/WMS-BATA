@@ -287,5 +287,93 @@ def download_personal_excel():
     output.seek(0)
     return send_file(output, download_name="personal_wms_bata.xlsx",
                      as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    @app.route("/api/personal/importar", methods=["POST"])
+@login_required
+@admin_required
+def importar_personal():
+    import openpyxl
+    from datetime import datetime, timedelta
+    
+    if 'archivo' not in request.files:
+        return jsonify({"error": "No se envio archivo"}), 400
+    
+    archivo = request.files['archivo']
+    wb = openpyxl.load_workbook(archivo, data_only=True)
+    ws = wb.active
+    
+    personal = []
+    filas = list(ws.iter_rows(values_only=True))
+    
+    # Detectar fila de cabecera (contiene DNI)
+    header_row = None
+    fecha_cols = []
+    for i, fila in enumerate(filas):
+        fila_str = [str(c).upper() if c else '' for c in fila]
+        if 'DNI' in fila_str:
+            header_row = i
+            # Detectar columnas de fechas (numeros seriales Excel > 40000)
+            for j, val in enumerate(fila):
+                if isinstance(val, (int, float)) and 40000 < val < 60000:
+                    fecha_cols.append((j, val))
+            break
+    
+    if header_row is None:
+        return jsonify({"error": "No se encontro cabecera DNI"}), 400
+    
+    def excel_date(serial):
+        try:
+            base = datetime(1899, 12, 30)
+            return base + timedelta(days=int(serial))
+        except:
+            return None
+
+    OMITIR_VALORES = ['RENUNCIO','LI','DESPACHO','NO RETAIL','NOCHE','PASO A LI',
+                      'PASO A NO RETAIL','WEB','']
+    
+    contador = 0
+    for fila in filas[header_row+1:]:
+        if not fila or not fila[1]:
+            continue
+        
+        dni = str(fila[1]).strip() if fila[1] else ''
+        nombre = str(fila[2]).strip() if fila[2] else ''
+        area = str(fila[3]).strip() if fila[3] else ''
+        puesto = str(fila[4]).strip() if fila[4] else ''
+        encargado = str(fila[5]).strip() if fila[5] else ''
+        area_abrev = str(fila[-1]).strip() if fila[-1] else ''
+        
+        if not dni or not nombre:
+            continue
+
+        dias = {}
+        for col_idx, serial in fecha_cols:
+            fecha = excel_date(serial)
+            if not fecha:
+                continue
+            year = fecha.year
+            week = fecha.isocalendar()[1]
+            day_of_week = fecha.weekday()
+            dia_key = f"{year}-W{str(week).zfill(2)}-{day_of_week}"
+            val = str(fila[col_idx]).strip() if col_idx < len(fila) and fila[col_idx] else ''
+            if val and val.upper() not in OMITIR_VALORES:
+                dias[dia_key] = val.upper()
+
+        personal.append({
+            "id": contador + 1,
+            "dni": dni,
+            "nombre": nombre,
+            "area": area,
+            "puesto": puesto,
+            "encargado": encargado,
+            "area_abrev": area_abrev,
+            "dias": dias
+        })
+        contador += 1
+
+    data = load_data()
+    data["personal"] = personal
+    save_data(data)
+    
+    return jsonify({"ok": True, "total": contador})
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
