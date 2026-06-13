@@ -92,71 +92,99 @@ def download_prescrito_excel():
     ws = wb.active
     ws.title = "Prescrito"
 
-    # Colores
     rojo_oscuro = "991B1B"
     rojo_medio  = "7F1D1D"
     rojo_claro  = "FEE2E2"
+    amarillo    = "854D0E"
+    verde       = "166534"
     blanco      = "FFFFFF"
     gris_fila   = "FEF9F9"
-    negro       = "000000"
+    negro       = "1F2937"
 
-    thin = Side(style="thin", color="DDDDDD")
+    thin = Side(style="thin", color="E5E7EB")
     border = Border(top=thin, bottom=thin, left=thin, right=thin)
 
-    def cell_style(cell, bg, fg="FFFFFF", bold=False, size=11, align="center"):
+    def cs(cell, bg, fg="FFFFFF", bold=False, size=11, align="center"):
         cell.fill = PatternFill("solid", fgColor=bg)
         cell.font = Font(bold=bold, color=fg, size=size, name="Calibri")
-        cell.alignment = Alignment(horizontal=align, vertical="center", wrap_text=True)
+        cell.alignment = Alignment(horizontal=align, vertical="center", wrap_text=False)
         cell.border = border
 
-    # Fila 1: PRESCRITO (merge A1:I1)
-    ws.merge_cells("A1:I1")
-    ws["A1"] = "PRESCRITO"
-    cell_style(ws["A1"], rojo_oscuro, blanco, bold=True, size=13)
+    # Calcular totales para KPIs
+    totals = {c: sum(int(presData.get(d, {}).get(c, 0) or 0) for d in DIAS) for c in COLS}
+    grand = sum(totals.values())
 
-    # Fila 2: cabeceras
+    # ── FILA 1: titulo KPIs ──
+    kpi_titles = ["TOTAL GENERAL", "CALZADO", "INSUMOS", "ACCESORIOS", "DOBLE TRAMO"]
+    kpi_cols   = [None, "calzado", "insumos", "accesorios", "doble"]
+    kpi_vals   = [grand, totals["calzado"], totals["insumos"], totals["accesorios"], totals["doble"]]
+    kpi_colors = ["991B1B", "991B1B", "854D0E", "1F2937", "166534"]
+    kpi_starts = [1, 3, 5, 7, 9]  # columnas donde empieza cada KPI (2 cols cada uno)
+
+    for i, (title, val, color, col_start) in enumerate(zip(kpi_titles, kpi_vals, kpi_colors, kpi_starts)):
+        ws.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_start+1)
+        ws.merge_cells(start_row=2, start_column=col_start, end_row=2, end_column=col_start+1)
+        c1 = ws.cell(row=1, column=col_start, value=title)
+        cs(c1, "1E293B", "94A3B8", bold=False, size=9)
+        c2 = ws.cell(row=2, column=col_start, value=val)
+        cs(c2, "1E293B", color, bold=True, size=14)
+
+    ws.row_dimensions[1].height = 18
+    ws.row_dimensions[2].height = 28
+
+    # ── FILA 3: espacio ──
+    ws.row_dimensions[3].height = 8
+
+    # ── FILA 4: titulo PRESCRITO ──
+    ws.merge_cells("A4:H4")
+    c = ws["A4"]
+    c.value = "PRESCRITO"
+    cs(c, rojo_oscuro, blanco, bold=True, size=13)
+    ws.row_dimensions[4].height = 24
+
+    # ── FILA 5: cabeceras ──
     headers = ["ATENCION"] + LABELS + ["TOTAL GENERAL"]
     for i, h in enumerate(headers, 1):
-        c = ws.cell(row=2, column=i, value=h)
-        cell_style(c, rojo_medio, blanco, bold=True, size=10)
+        c = ws.cell(row=5, column=i, value=h)
+        cs(c, rojo_medio, blanco, bold=True, size=10)
+    ws.row_dimensions[5].height = 20
 
-    # Filas de datos
-    for row_idx, dia in enumerate(DIAS, 3):
+    # ── FILAS DE DATOS ──
+    for row_idx, dia in enumerate(DIAS, 6):
         vals = [int(presData.get(dia, {}).get(col, 0) or 0) for col in COLS]
         total = sum(vals)
         bg = gris_fila if row_idx % 2 == 0 else blanco
         c = ws.cell(row=row_idx, column=1, value=dia)
-        cell_style(c, bg, negro, bold=True, align="left")
+        cs(c, bg, negro, bold=True, size=11, align="left")
         for ci, v in enumerate(vals, 2):
             cc = ws.cell(row=row_idx, column=ci, value=v)
-            cell_style(cc, bg, negro)
-        ct = ws.cell(row=row_idx, column=9, value=total)
-        cell_style(ct, rojo_claro, rojo_oscuro, bold=True)
+            cs(cc, bg, negro, size=11)
+        ct = ws.cell(row=row_idx, column=8, value=total)
+        cs(ct, rojo_claro, rojo_oscuro, bold=True, size=11)
+        ws.row_dimensions[row_idx].height = 20
 
-    # Fila TOTAL
-    total_row = 3 + len(DIAS)
-    totals = [sum(int(presData.get(d, {}).get(c, 0) or 0) for d in DIAS) for c in COLS]
-    grand = sum(totals)
+    # ── FILA TOTAL ──
+    total_row = 6 + len(DIAS)
+    col_totals = [sum(int(presData.get(d, {}).get(c, 0) or 0) for d in DIAS) for c in COLS]
+    grand_total = sum(col_totals)
     ct = ws.cell(row=total_row, column=1, value="TOTAL")
-    cell_style(ct, rojo_oscuro, blanco, bold=True, align="left")
-    for ci, v in enumerate(totals, 2):
+    cs(ct, rojo_oscuro, blanco, bold=True, size=11, align="left")
+    for ci, v in enumerate(col_totals, 2):
         cc = ws.cell(row=total_row, column=ci, value=v)
-        cell_style(cc, rojo_oscuro, blanco, bold=True)
-    cg = ws.cell(row=total_row, column=9, value=grand)
-    cell_style(cg, rojo_oscuro, blanco, bold=True)
+        cs(cc, rojo_oscuro, blanco, bold=True, size=11)
+    cg = ws.cell(row=total_row, column=8, value=grand_total)
+    cs(cg, rojo_oscuro, blanco, bold=True, size=12)
+    ws.row_dimensions[total_row].height = 22
 
-    # Anchos de columna
-    anchos = [16, 13, 13, 13, 13, 13, 14, 13, 16]
+    # ── ANCHOS ──
+    anchos = [16, 13, 13, 13, 13, 13, 14, 16]
     for i, w in enumerate(anchos, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    for r in range(1, total_row + 1):
-        ws.row_dimensions[r].height = 22
 
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
     return send_file(output, download_name="prescrito_wms_bata.xlsx",
                      as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
