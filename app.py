@@ -125,9 +125,9 @@ def download_prescrito_excel():
         ws.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_start+1)
         ws.merge_cells(start_row=2, start_column=col_start, end_row=2, end_column=col_start+1)
         c1 = ws.cell(row=1, column=col_start, value=title)
-        cs(c1, "1E293B", "94A3B8", bold=False, size=9)
+       cs(c1, "000000", "FFFFFF", bold=False, size=9)
         c2 = ws.cell(row=2, column=col_start, value=val)
-        cs(c2, "1E293B", color, bold=True, size=14)
+        cs(c2, "000000", color, bold=True, size=14)
 
     ws.row_dimensions[1].height = 18
     ws.row_dimensions[2].height = 28
