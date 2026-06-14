@@ -269,13 +269,9 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
     <button class="filtro-btn" onclick="filtrarPersonal('SUSPENDIDO',this)">Suspendidos</button>
     <button class="filtro-btn" onclick="filtrarPersonal('DM',this)">D.M/C.M/Cumple</button>
   </div>
-  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
+  <div class="kpi-grid" id="kpi-personal-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
     <div class="kpi-card"><div class="kpi-label">Total Personal</div><div class="kpi-value" id="kpi-p-total">0</div></div>
-    <div class="kpi-card kpi-green"><div class="kpi-label">Asistio</div><div class="kpi-value" id="kpi-p-asistio">0</div></div>
-    <div class="kpi-card kpi-red"><div class="kpi-label">Faltos</div><div class="kpi-value" id="kpi-p-faltos">0</div></div>
-    <div class="kpi-card kpi-yellow"><div class="kpi-label">Vacaciones</div><div class="kpi-value" id="kpi-p-vacaciones">0</div></div>
-    <div class="kpi-card"><div class="kpi-label">Suspendidos</div><div class="kpi-value" id="kpi-p-suspendidos" style="color:#a78bfa;">0</div></div>
-    <div class="kpi-card"><div class="kpi-label">D.M/C.M/Cumple</div><div class="kpi-value" id="kpi-p-dm" style="color:#60a5fa;">0</div></div>
+    <!-- KPIs por dia se generan dinamicamente en JS -->
   </div>
   <div class="table-wrap" style="overflow-x:auto;">
     <table class="pres-table" id="personal-table">
@@ -507,7 +503,7 @@ function renderPersonalTable(){
     {label:'D.M/C.M/Cumple', key:'dm', color:'#60a5fa'}
   ];
   filas.forEach(f => {
-    hhtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:#000;border-bottom:1px solid rgba(255,255,255,0.05);" colspan="5">${f.label}</td>`;
+    hhtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:#000;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap;width:460px;" colspan="5">${f.label}</td>`;
     mostrarDias.forEach(d => {
       let val;
       if(f.key==='total') val = personalData.length;
@@ -616,29 +612,23 @@ function setupDragAndDrop(){
 }
 
 function updateKpisPersonal(){
-  const diaIdx = document.getElementById('dia-selector').value;
-  const refDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
-  const firstDia = refDias[0];
-  if(!firstDia) return;
-
-  let asistio=0, faltos=0, vac=0, sus=0, dm=0;
-  personalData.forEach(p => {
-    refDias.forEach(d => {
-      const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
-      if(!VALORES_CONTEO.includes(v)) return;
-      if(v==='SI') asistio++;
-      else if(v==='NO') faltos++;
-      else if(v==='VACACIONES') vac++;
-      else if(v==='SUSPENDIDO') sus++;
-      else if(['D.M','C.M','CUMPLEAÑOS'].includes(v)) dm++;
-    });
-  });
   document.getElementById('kpi-p-total').textContent = personalData.length;
-  document.getElementById('kpi-p-asistio').textContent = asistio;
-  document.getElementById('kpi-p-faltos').textContent = faltos;
-  document.getElementById('kpi-p-vacaciones').textContent = vac;
-  document.getElementById('kpi-p-suspendidos').textContent = sus;
-  document.getElementById('kpi-p-dm').textContent = dm;
+
+  const grid = document.getElementById('kpi-personal-grid');
+  // Eliminar KPIs de dias previos (mantener solo el primero: Total Personal)
+  while(grid.children.length > 1) grid.removeChild(grid.lastChild);
+
+  diasSemana.forEach(d => {
+    let registrados = 0;
+    personalData.forEach(p => {
+      const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
+      if(VALORES_CONTEO.includes(v)) registrados++;
+    });
+    const card = document.createElement('div');
+    card.className = 'kpi-card';
+    card.innerHTML = `<div class="kpi-label">${d.label}</div><div class="kpi-value" style="color:#86efac;">${registrados}</div>`;
+    grid.appendChild(card);
+  });
 }
 
 function filtrarPersonal(tipo, btn){
