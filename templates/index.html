@@ -86,6 +86,10 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
 .modal-input{width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;font-family:'Inter',sans-serif;outline:none;}
 .modal-input:focus{border-color:rgba(220,38,38,0.5);}
 .modal-input option{background:#1e1e2e;color:#fff;}
+#semana-picker{color-scheme:dark;}
+#dia-selector{color-scheme:dark;}
+#dia-selector option{background:#1e1e2e;color:#fff;}
+#semana-picker::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer;}
 .p-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;}
 .p-si{background:rgba(34,197,94,0.15);color:#86efac;}
 .p-no{background:rgba(220,38,38,0.15);color:#fca5a5;}
@@ -275,7 +279,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
   </div>
   <div class="table-wrap" style="overflow-x:auto;">
     <table class="pres-table" id="personal-table">
-      <tbody id="personal-counts"></tbody>
       <thead id="personal-thead"></thead>
       <tbody id="personal-tbody"></tbody>
     </table>
@@ -491,36 +494,33 @@ function renderPersonalTable(){
   const diaIdx = document.getElementById('dia-selector').value;
   const mostrarDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
 
-  // Fila de contadores por dia (encima de la cabecera)
-  const countHead = document.getElementById('personal-counts');
-  if(countHead){
-    const filas = [
-      {label:'Total Personal', key:'total', color:'#fff'},
-      {label:'Asistio', key:'asistio', color:'#86efac'},
-      {label:'Vacaciones', key:'vac', color:'#fde047'},
-      {label:'Faltos', key:'faltos', color:'#fca5a5'},
-      {label:'Suspendidos', key:'sus', color:'#a78bfa'},
-      {label:'D.M/C.M/Cumple', key:'dm', color:'#60a5fa'}
-    ];
-    let chtml = '';
-    filas.forEach(f => {
-      chtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.02);" colspan="5">${f.label}</td>`;
-      mostrarDias.forEach(d => {
-        let val;
-        if(f.key==='total') val = personalData.length;
-        else val = calcularContadoresDia(d)[f.key];
-        chtml += `<td style="background:#000;color:${f.color};font-weight:700;font-size:13px;">${val}</td>`;
-      });
-      chtml += '</tr>';
-    });
-    countHead.innerHTML = chtml;
-  }
-
-  // Cabecera
+  // Fila de contadores (arriba) + cabecera de fechas (debajo)
   const thead = document.getElementById('personal-thead');
-  let hhtml = '<tr><th class="left" style="min-width:30px"></th><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:100px">AREA</th>';
+  let hhtml = '';
+
+  const filas = [
+    {label:'Total Personal', key:'total', color:'#fff'},
+    {label:'Asistio', key:'asistio', color:'#86efac'},
+    {label:'Vacaciones', key:'vac', color:'#fde047'},
+    {label:'Faltos', key:'faltos', color:'#fca5a5'},
+    {label:'Suspendidos', key:'sus', color:'#a78bfa'},
+    {label:'D.M/C.M/Cumple', key:'dm', color:'#60a5fa'}
+  ];
+  filas.forEach(f => {
+    hhtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:#000;border-bottom:1px solid rgba(255,255,255,0.05);" colspan="5">${f.label}</td>`;
+    mostrarDias.forEach(d => {
+      let val;
+      if(f.key==='total') val = personalData.length;
+      else val = calcularContadoresDia(d)[f.key];
+      hhtml += `<td style="background:#000;color:${f.color};font-weight:700;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.05);">${val}</td>`;
+    });
+    hhtml += '</tr>';
+  });
+
+  hhtml += '<tr><th class="left" style="min-width:30px"></th><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:100px">AREA</th>';
   mostrarDias.forEach((d,i) => { hhtml += `<th style="min-width:100px" data-col-idx="${i}">${d.label}</th>`; });
   hhtml += '</tr>';
+
   thead.innerHTML = hhtml;
 
   // Filtrar
