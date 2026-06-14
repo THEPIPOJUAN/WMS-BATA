@@ -633,11 +633,6 @@ function updateKpisPersonal(){
       else if(['D.M','C.M','CUMPLEAÑOS'].includes(v)) dm++;
     });
   });
-  if(diaIdx==='todos'){
-    const n = refDias.length || 1;
-    asistio=Math.round(asistio/n); faltos=Math.round(faltos/n);
-    vac=Math.round(vac/n); sus=Math.round(sus/n); dm=Math.round(dm/n);
-  }
   document.getElementById('kpi-p-total').textContent = personalData.length;
   document.getElementById('kpi-p-asistio').textContent = asistio;
   document.getElementById('kpi-p-faltos').textContent = faltos;
@@ -657,8 +652,33 @@ function updatePersonalDia(id, diaKey, val){
   const p = personalData.find(x => x.id === id);
   if(!p) return;
   if(!p.dias) p.dias = {};
-  p.dias[diaKey] = val;
+  p.dias[diaKey] = val.toUpperCase();
   updateKpisPersonal();
+  actualizarFilaContadores();
+}
+
+function actualizarFilaContadores(){
+  const diaIdx = document.getElementById('dia-selector').value;
+  const mostrarDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
+  const thead = document.getElementById('personal-thead');
+  if(!thead) return;
+  const filas = [
+    {key:'total'}, {key:'asistio'}, {key:'vac'}, {key:'faltos'}, {key:'sus'}, {key:'dm'}
+  ];
+  const rows = thead.querySelectorAll('tr');
+  filas.forEach((f, fi) => {
+    const row = rows[fi];
+    if(!row) return;
+    const cells = row.querySelectorAll('td');
+    mostrarDias.forEach((d, di) => {
+      const cell = cells[di];
+      if(!cell) return;
+      let val;
+      if(f.key==='total') val = personalData.length;
+      else val = calcularContadoresDia(d)[f.key];
+      cell.textContent = val;
+    });
+  });
 }
 
 async function loadPersonal(){
@@ -674,10 +694,19 @@ function loadPersonalFromDefault(){
 }
 
 async function savePersonal(){
-  await fetch('/api/personal', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(personalData)});
-  const msg = document.getElementById('save-msg-personal');
-  msg.style.opacity='1';
-  setTimeout(()=>msg.style.opacity='0', 2000);
+  try {
+    const res = await fetch('/api/personal', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(personalData)});
+    if(!res.ok){
+      const err = await res.json();
+      alert('Error al guardar: ' + (err.error || res.status));
+      return;
+    }
+    const msg = document.getElementById('save-msg-personal');
+    msg.style.opacity='1';
+    setTimeout(()=>msg.style.opacity='0', 2000);
+  } catch(e){
+    alert('Error de conexion al guardar: ' + e.message);
+  }
 }
 
 function showAddPersonal(){
