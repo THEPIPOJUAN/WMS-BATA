@@ -96,6 +96,9 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
 .area-emb{background:rgba(234,179,8,0.2);color:#fde047;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
 .area-pick{background:rgba(249,115,22,0.2);color:#fb923c;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
 .area-otros{background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
+.drag-handle{color:rgba(255,255,255,0.25);font-size:14px;cursor:grab;user-select:none;}
+.drag-handle:hover{color:rgba(255,255,255,0.6);}
+.p-row-draggable.drag-over{border-top:2px solid #dc2626;}
 .download-wrap{position:relative;display:inline-block;}
 .download-btn{padding:10px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;}
 .download-btn:hover{background:rgba(255,255,255,0.12);}
@@ -242,14 +245,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
       {% endif %}
     </div>
   </div>
-  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
-    <div class="kpi-card"><div class="kpi-label">Total Esperado</div><div class="kpi-value" id="kpi-p-total">49</div></div>
-    <div class="kpi-card kpi-green"><div class="kpi-label">Asistio</div><div class="kpi-value" id="kpi-p-asistio">0</div></div>
-    <div class="kpi-card kpi-red"><div class="kpi-label">Faltos</div><div class="kpi-value" id="kpi-p-faltos">0</div></div>
-    <div class="kpi-card kpi-yellow"><div class="kpi-label">Vacaciones</div><div class="kpi-value" id="kpi-p-vacaciones">0</div></div>
-    <div class="kpi-card"><div class="kpi-label">Suspendidos</div><div class="kpi-value" id="kpi-p-suspendidos" style="color:#a78bfa;">0</div></div>
-    <div class="kpi-card"><div class="kpi-label">D.M/C.M/Cumple</div><div class="kpi-value" id="kpi-p-dm" style="color:#60a5fa;">0</div></div>
-  </div>
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
     <div style="display:flex;align-items:center;gap:8px;">
       <span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:1px;">Semana</span>
@@ -269,6 +264,14 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
     <button class="filtro-btn" onclick="filtrarPersonal('VACACIONES',this)">Vacaciones</button>
     <button class="filtro-btn" onclick="filtrarPersonal('SUSPENDIDO',this)">Suspendidos</button>
     <button class="filtro-btn" onclick="filtrarPersonal('DM',this)">D.M/C.M/Cumple</button>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
+    <div class="kpi-card"><div class="kpi-label">Total Personal</div><div class="kpi-value" id="kpi-p-total">0</div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-label">Asistio</div><div class="kpi-value" id="kpi-p-asistio">0</div></div>
+    <div class="kpi-card kpi-red"><div class="kpi-label">Faltos</div><div class="kpi-value" id="kpi-p-faltos">0</div></div>
+    <div class="kpi-card kpi-yellow"><div class="kpi-label">Vacaciones</div><div class="kpi-value" id="kpi-p-vacaciones">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">Suspendidos</div><div class="kpi-value" id="kpi-p-suspendidos" style="color:#a78bfa;">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">D.M/C.M/Cumple</div><div class="kpi-value" id="kpi-p-dm" style="color:#60a5fa;">0</div></div>
   </div>
   <div class="table-wrap" style="overflow-x:auto;">
     <table class="pres-table" id="personal-table">
@@ -335,13 +338,13 @@ function fmt(n){return n?Number(n).toLocaleString('es-PE'):'0';}
 function buildPresTable(){
   const tbody=document.getElementById('prescrito-body');
   tbody.innerHTML='';
-  DIAS.forEach(dia=>{
+  DIAS.forEach((dia,rowIdx)=>{
     const tr=document.createElement('tr');
     let html=`<td class="day-label">${dia}</td>`;
-    COLS.forEach(col=>{
+    COLS.forEach((col,colIdx)=>{
       const val=(presData[dia]&&presData[dia][col])||'';
       if(IS_ADMIN){
-        html+=`<td><input class="editable" type="number" min="0" value="${val}" oninput="updateCell('${dia}','${col}',this.value)" placeholder="0"></td>`;
+        html+=`<td><input class="editable" type="number" min="0" value="${val}" data-row="${rowIdx}" data-col="${colIdx}" oninput="updateCell('${dia}','${col}',this.value)" onkeydown="handlePresEnter(event,${rowIdx},${colIdx})" placeholder="0"></td>`;
       } else {
         html+=`<td>${val?Number(val).toLocaleString('es-PE'):'0'}</td>`;
       }
@@ -352,6 +355,17 @@ function buildPresTable(){
     tbody.appendChild(tr);
   });
   updateTotals();
+}
+
+function handlePresEnter(ev, rowIdx, colIdx){
+  if(ev.key !== 'Enter') return;
+  ev.preventDefault();
+  const nextRow = rowIdx + 1;
+  const nextInput = document.querySelector(`#prescrito-body input[data-row="${nextRow}"][data-col="${colIdx}"]`);
+  if(nextInput){
+    nextInput.focus();
+    nextInput.select();
+  }
 }
 
 function updateCell(dia,col,val){
@@ -463,11 +477,12 @@ function calcularContadoresDia(d){
   let asistio=0, faltos=0, vac=0, sus=0, dm=0;
   personalData.forEach(p => {
     const v = ((p.dias && p.dias[d.key]) || '').toUpperCase().trim();
+    if(!VALORES_CONTEO.includes(v)) return;
     if(v==='SI') asistio++;
     else if(v==='NO') faltos++;
     else if(v==='VACACIONES') vac++;
     else if(v==='SUSPENDIDO') sus++;
-    else if(['D.M','C.M','CUMPLEAÑOS','C.M','CUMPLEANOS'].includes(v)) dm++;
+    else if(['D.M','C.M','CUMPLEAÑOS'].includes(v)) dm++;
   });
   return {asistio, faltos, vac, sus, dm};
 }
@@ -489,7 +504,7 @@ function renderPersonalTable(){
     ];
     let chtml = '';
     filas.forEach(f => {
-      chtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.02);" colspan="4">${f.label}</td>`;
+      chtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.02);" colspan="5">${f.label}</td>`;
       mostrarDias.forEach(d => {
         let val;
         if(f.key==='total') val = personalData.length;
@@ -503,8 +518,8 @@ function renderPersonalTable(){
 
   // Cabecera
   const thead = document.getElementById('personal-thead');
-  let hhtml = '<tr><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:100px">AREA</th>';
-  mostrarDias.forEach(d => { hhtml += `<th style="min-width:100px">${d.label}</th>`; });
+  let hhtml = '<tr><th class="left" style="min-width:30px"></th><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:100px">AREA</th>';
+  mostrarDias.forEach((d,i) => { hhtml += `<th style="min-width:100px" data-col-idx="${i}">${d.label}</th>`; });
   hhtml += '</tr>';
   thead.innerHTML = hhtml;
 
@@ -528,15 +543,19 @@ function renderPersonalTable(){
   const tbody = document.getElementById('personal-tbody');
   let bhtml = '';
   filtered.forEach((p, idx) => {
-    bhtml += `<tr><td style="text-align:left;color:rgba(255,255,255,0.4);font-size:12px;">${idx+1}</td>
+    const IS_ADMIN_JS = document.querySelector('.badge-edit') !== null;
+    const dragAttr = IS_ADMIN_JS ? `draggable="true" data-pid="${p.id}"` : '';
+    const dragHandle = IS_ADMIN_JS ? `<span class="drag-handle" title="Arrastrar para reordenar">&#9776;</span>` : '';
+    bhtml += `<tr ${dragAttr} class="${IS_ADMIN_JS?'p-row-draggable':''}">
+      <td style="text-align:center;cursor:${IS_ADMIN_JS?'grab':'default'};">${dragHandle}</td>
+      <td style="text-align:left;color:rgba(255,255,255,0.4);font-size:12px;">${idx+1}</td>
       <td style="text-align:left;font-size:12px;color:rgba(255,255,255,0.6);">${p.dni}</td>
       <td style="text-align:left;font-weight:600;font-size:13px;">${p.nombre}</td>
       <td style="text-align:left;">${areaBadge(p.area_abrev || p.area)}</td>`;
-    mostrarDias.forEach(d => {
+    mostrarDias.forEach((d,colIdx) => {
       const val = (p.dias && p.dias[d.key]) || '';
-      const IS_ADMIN_JS = document.querySelector('.badge-edit') !== null;
       if(IS_ADMIN_JS){
-        bhtml += `<td><input type="text" class="p-input" value="${val}" oninput="updatePersonalDia(${p.id},'${d.key}',this.value)" placeholder="—" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;padding:6px 8px;font-size:12px;font-family:inherit;width:90px;text-align:center;text-transform:uppercase;"></td>`;
+        bhtml += `<td><input type="text" class="p-input" value="${val}" data-row="${idx}" data-col="${colIdx}" oninput="updatePersonalDia(${p.id},'${d.key}',this.value)" onkeydown="handlePersonalEnter(event,${idx},${colIdx})" placeholder="—" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;padding:6px 8px;font-size:12px;font-family:inherit;width:90px;text-align:center;text-transform:uppercase;"></td>`;
       } else {
         bhtml += `<td>${badgeVal(val)}</td>`;
       }
@@ -544,8 +563,56 @@ function renderPersonalTable(){
     bhtml += '</tr>';
   });
   tbody.innerHTML = bhtml;
-
+  setupDragAndDrop();
   updateKpisPersonal();
+}
+
+function handlePersonalEnter(ev, rowIdx, colIdx){
+  if(ev.key !== 'Enter') return;
+  ev.preventDefault();
+  const nextRow = rowIdx + 1;
+  const nextInput = document.querySelector(`#personal-tbody input[data-row="${nextRow}"][data-col="${colIdx}"]`);
+  if(nextInput){
+    nextInput.focus();
+    nextInput.select();
+  }
+}
+
+function setupDragAndDrop(){
+  const tbody = document.getElementById('personal-tbody');
+  let dragSrc = null;
+  tbody.querySelectorAll('.p-row-draggable').forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragSrc = row;
+      row.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      const target = row;
+      if(target === dragSrc) return;
+      target.style.borderTop = '2px solid #dc2626';
+    });
+    row.addEventListener('dragleave', () => {
+      row.style.borderTop = '';
+    });
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      row.style.borderTop = '';
+      if(dragSrc === row) return;
+      const srcId = parseInt(dragSrc.dataset.pid);
+      const targetId = parseInt(row.dataset.pid);
+      const srcIdx = personalData.findIndex(p => p.id === srcId);
+      const targetIdx = personalData.findIndex(p => p.id === targetId);
+      if(srcIdx === -1 || targetIdx === -1) return;
+      const [moved] = personalData.splice(srcIdx, 1);
+      personalData.splice(targetIdx, 0, moved);
+      renderPersonalTable();
+    });
+  });
 }
 
 function updateKpisPersonal(){
@@ -571,6 +638,7 @@ function updateKpisPersonal(){
     asistio=Math.round(asistio/n); faltos=Math.round(faltos/n);
     vac=Math.round(vac/n); sus=Math.round(sus/n); dm=Math.round(dm/n);
   }
+  document.getElementById('kpi-p-total').textContent = personalData.length;
   document.getElementById('kpi-p-asistio').textContent = asistio;
   document.getElementById('kpi-p-faltos').textContent = faltos;
   document.getElementById('kpi-p-vacaciones').textContent = vac;
