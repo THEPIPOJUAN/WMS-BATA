@@ -272,6 +272,7 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
   </div>
   <div class="table-wrap" style="overflow-x:auto;">
     <table class="pres-table" id="personal-table">
+      <tbody id="personal-counts"></tbody>
       <thead id="personal-thead"></thead>
       <tbody id="personal-tbody"></tbody>
     </table>
@@ -458,13 +459,51 @@ function areaBadge(a){
   return `<span class="area-otros">${a}</span>`;
 }
 
+function calcularContadoresDia(d){
+  let asistio=0, faltos=0, vac=0, sus=0, dm=0;
+  personalData.forEach(p => {
+    const v = ((p.dias && p.dias[d.key]) || '').toUpperCase().trim();
+    if(v==='SI') asistio++;
+    else if(v==='NO') faltos++;
+    else if(v==='VACACIONES') vac++;
+    else if(v==='SUSPENDIDO') sus++;
+    else if(['D.M','C.M','CUMPLEAÑOS','C.M','CUMPLEANOS'].includes(v)) dm++;
+  });
+  return {asistio, faltos, vac, sus, dm};
+}
+
 function renderPersonalTable(){
   const diaIdx = document.getElementById('dia-selector').value;
   const mostrarDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
 
+  // Fila de contadores por dia (encima de la cabecera)
+  const countHead = document.getElementById('personal-counts');
+  if(countHead){
+    const filas = [
+      {label:'Total Personal', key:'total', color:'#fff'},
+      {label:'Asistio', key:'asistio', color:'#86efac'},
+      {label:'Vacaciones', key:'vac', color:'#fde047'},
+      {label:'Faltos', key:'faltos', color:'#fca5a5'},
+      {label:'Suspendidos', key:'sus', color:'#a78bfa'},
+      {label:'D.M/C.M/Cumple', key:'dm', color:'#60a5fa'}
+    ];
+    let chtml = '';
+    filas.forEach(f => {
+      chtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.02);" colspan="4">${f.label}</td>`;
+      mostrarDias.forEach(d => {
+        let val;
+        if(f.key==='total') val = personalData.length;
+        else val = calcularContadoresDia(d)[f.key];
+        chtml += `<td style="background:#000;color:${f.color};font-weight:700;font-size:13px;">${val}</td>`;
+      });
+      chtml += '</tr>';
+    });
+    countHead.innerHTML = chtml;
+  }
+
   // Cabecera
   const thead = document.getElementById('personal-thead');
-  let hhtml = '<tr><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:120px">AREA</th><th class="left" style="min-width:80px">AREA</th>';
+  let hhtml = '<tr><th class="left" style="min-width:40px">N°</th><th class="left" style="min-width:90px">DNI</th><th class="left" style="min-width:200px">APELLIDOS Y NOMBRE</th><th class="left" style="min-width:100px">AREA</th>';
   mostrarDias.forEach(d => { hhtml += `<th style="min-width:100px">${d.label}</th>`; });
   hhtml += '</tr>';
   thead.innerHTML = hhtml;
@@ -492,22 +531,12 @@ function renderPersonalTable(){
     bhtml += `<tr><td style="text-align:left;color:rgba(255,255,255,0.4);font-size:12px;">${idx+1}</td>
       <td style="text-align:left;font-size:12px;color:rgba(255,255,255,0.6);">${p.dni}</td>
       <td style="text-align:left;font-weight:600;font-size:13px;">${p.nombre}</td>
-      <td style="text-align:left;">${areaBadge(p.area)}</td>
-      <td style="text-align:left;">${areaBadge(p.area_abrev)}</td>`;
+      <td style="text-align:left;">${areaBadge(p.area_abrev || p.area)}</td>`;
     mostrarDias.forEach(d => {
       const val = (p.dias && p.dias[d.key]) || '';
       const IS_ADMIN_JS = document.querySelector('.badge-edit') !== null;
       if(IS_ADMIN_JS){
-        bhtml += `<td><select class="p-select" onchange="updatePersonalDia(${p.id},'${d.key}',this.value)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;padding:4px 6px;font-size:11px;font-family:inherit;width:100px;">
-          <option value="">—</option>
-          <option value="SI" ${val==='SI'?'selected':''}>SI</option>
-          <option value="NO" ${val==='NO'?'selected':''}>NO</option>
-          <option value="VACACIONES" ${val==='VACACIONES'?'selected':''}>VACACIONES</option>
-          <option value="SUSPENDIDO" ${val==='SUSPENDIDO'?'selected':''}>SUSPENDIDO</option>
-          <option value="D.M" ${val==='D.M'?'selected':''}>D.M</option>
-          <option value="C.M" ${val==='C.M'?'selected':''}>C.M</option>
-          <option value="CUMPLEAÑOS" ${val==='CUMPLEAÑOS'?'selected':''}>CUMPLEAÑOS</option>
-        </select></td>`;
+        bhtml += `<td><input type="text" class="p-input" value="${val}" oninput="updatePersonalDia(${p.id},'${d.key}',this.value)" placeholder="—" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;padding:6px 8px;font-size:12px;font-family:inherit;width:90px;text-align:center;text-transform:uppercase;"></td>`;
       } else {
         bhtml += `<td>${badgeVal(val)}</td>`;
       }
