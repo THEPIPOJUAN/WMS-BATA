@@ -269,9 +269,8 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
     <button class="filtro-btn" onclick="filtrarPersonal('SUSPENDIDO',this)">Suspendidos</button>
     <button class="filtro-btn" onclick="filtrarPersonal('DM',this)">D.M/C.M/Cumple</button>
   </div>
-  <div class="kpi-grid" id="kpi-personal-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;max-width:200px;">
     <div class="kpi-card"><div class="kpi-label">Total Personal</div><div class="kpi-value" id="kpi-p-total">0</div></div>
-    <!-- KPIs por dia se generan dinamicamente en JS -->
   </div>
   <div class="table-wrap" style="overflow-x:auto;">
     <table class="pres-table" id="personal-table">
@@ -502,6 +501,20 @@ function renderPersonalTable(){
     {label:'Suspendidos', key:'sus', color:'#a78bfa'},
     {label:'D.M/C.M/Cumple', key:'dm', color:'#60a5fa'}
   ];
+  // Fila destacada: KPI por dia (registros llenados)
+  hhtml += '<tr>';
+  hhtml += `<td colspan="4" style="background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);"></td>`;
+  hhtml += `<td style="background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);text-align:left;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Registros / dia</td>`;
+  mostrarDias.forEach(d => {
+    let registrados = 0;
+    personalData.forEach(p => {
+      const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
+      if(VALORES_CONTEO.includes(v)) registrados++;
+    });
+    hhtml += `<td style="background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08);color:#86efac;font-weight:700;font-size:18px;padding:14px 8px;">${registrados}</td>`;
+  });
+  hhtml += '</tr>';
+
   filas.forEach(f => {
     hhtml += '<tr>';
     hhtml += `<td style="background:#000;border-bottom:1px solid rgba(255,255,255,0.05);min-width:30px;"></td>`;
@@ -618,22 +631,6 @@ function setupDragAndDrop(){
 
 function updateKpisPersonal(){
   document.getElementById('kpi-p-total').textContent = personalData.length;
-
-  const grid = document.getElementById('kpi-personal-grid');
-  // Eliminar KPIs de dias previos (mantener solo el primero: Total Personal)
-  while(grid.children.length > 1) grid.removeChild(grid.lastChild);
-
-  diasSemana.forEach(d => {
-    let registrados = 0;
-    personalData.forEach(p => {
-      const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
-      if(VALORES_CONTEO.includes(v)) registrados++;
-    });
-    const card = document.createElement('div');
-    card.className = 'kpi-card';
-    card.innerHTML = `<div class="kpi-label">${d.label}</div><div class="kpi-value" style="color:#86efac;">${registrados}</div>`;
-    grid.appendChild(card);
-  });
 }
 
 function filtrarPersonal(tipo, btn){
@@ -657,12 +654,30 @@ function actualizarFilaContadores(){
   const mostrarDias = diaIdx === 'todos' ? diasSemana : [diasSemana[parseInt(diaIdx)]];
   const thead = document.getElementById('personal-thead');
   if(!thead) return;
+  const rows = thead.querySelectorAll('tr');
+
+  // Fila 0: KPI Registros/dia
+  const kpiRow = rows[0];
+  if(kpiRow){
+    const kpiCells = kpiRow.querySelectorAll('td');
+    mostrarDias.forEach((d, di) => {
+      const cell = kpiCells[di + 2]; // celda 0 = colspan4, celda 1 = etiqueta "Registros/dia"
+      if(!cell) return;
+      let registrados = 0;
+      personalData.forEach(p => {
+        const v = (p.dias && p.dias[d.key] || '').toUpperCase().trim();
+        if(VALORES_CONTEO.includes(v)) registrados++;
+      });
+      cell.textContent = registrados;
+    });
+  }
+
+  // Filas 1-6: contadores (Total Personal, Asistio, Vacaciones, Faltos, Suspendidos, D.M)
   const filas = [
     {key:'total'}, {key:'asistio'}, {key:'vac'}, {key:'faltos'}, {key:'sus'}, {key:'dm'}
   ];
-  const rows = thead.querySelectorAll('tr');
   filas.forEach((f, fi) => {
-    const row = rows[fi];
+    const row = rows[fi + 1];
     if(!row) return;
     const cells = row.querySelectorAll('td');
     mostrarDias.forEach((d, di) => {
