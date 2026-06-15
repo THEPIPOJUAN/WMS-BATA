@@ -503,7 +503,12 @@ function renderPersonalTable(){
     {label:'D.M/C.M/Cumple', key:'dm', color:'#60a5fa'}
   ];
   filas.forEach(f => {
-    hhtml += `<tr><td class="left" style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:#000;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap;width:460px;" colspan="5">${f.label}</td>`;
+    hhtml += '<tr>';
+    hhtml += `<td style="background:#000;border-bottom:1px solid rgba(255,255,255,0.05);min-width:30px;"></td>`;
+    hhtml += `<td style="background:#000;border-bottom:1px solid rgba(255,255,255,0.05);min-width:40px;"></td>`;
+    hhtml += `<td style="background:#000;border-bottom:1px solid rgba(255,255,255,0.05);min-width:90px;"></td>`;
+    hhtml += `<td style="text-align:left;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);background:#000;border-bottom:1px solid rgba(255,255,255,0.05);min-width:200px;white-space:nowrap;">${f.label}</td>`;
+    hhtml += `<td style="background:#000;border-bottom:1px solid rgba(255,255,255,0.05);min-width:100px;"></td>`;
     mostrarDias.forEach(d => {
       let val;
       if(f.key==='total') val = personalData.length;
@@ -661,7 +666,7 @@ function actualizarFilaContadores(){
     if(!row) return;
     const cells = row.querySelectorAll('td');
     mostrarDias.forEach((d, di) => {
-      const cell = cells[di];
+      const cell = cells[di + 5];
       if(!cell) return;
       let val;
       if(f.key==='total') val = personalData.length;
