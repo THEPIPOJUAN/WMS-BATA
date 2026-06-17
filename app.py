@@ -359,5 +359,43 @@ def importar_personal():
     return jsonify({"ok": True, "total": contador})
 
 
+@app.route("/api/wms/procesar", methods=["POST"])
+@login_required
+@admin_required
+def procesar_wms_endpoint():
+    from wms_logic import procesar_wms, resumen_kpis
+    import datetime
+
+    if 'archivo' not in request.files:
+        return jsonify({"error": "No se envio archivo"}), 400
+
+    archivo = request.files['archivo']
+    if not archivo.filename.lower().endswith('.xlsx'):
+        return jsonify({"error": "El archivo debe ser .xlsx"}), 400
+
+    try:
+        df_full, stk_valid = procesar_wms(archivo)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Error procesando el archivo: {e}"}), 500
+
+    kpis = resumen_kpis(df_full)
+
+    nuevo_resultado = {
+        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "archivo": archivo.filename,
+        "kpis": kpis,
+    }
+
+    data = load_data()
+    historial = data.get("wms_historial", [])
+    historial.insert(0, nuevo_resultado)
+    data["wms_historial"] = historial[:3]
+    save_data(data)
+
+    return jsonify({"ok": True, "kpis": kpis})
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
