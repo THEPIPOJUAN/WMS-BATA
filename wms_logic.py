@@ -24,41 +24,41 @@ def sku_multiplier(sku):
     return 1
 
 
-def map_piso(row):
-    area = str(row['AREA']).strip().upper()
-    ubic = str(row['UBICACION']).strip().upper()
-    if area == 'MZN04':
-        return '4TO PISO'
-    elif area == 'MZN03':
-        return '3ER PISO'
-    elif area == 'MZN02':
-        return '2DO PISO'
-    elif area in ('PISO', 'PARED', 'DIS', 'ACT', 'SIN'):
-        return 'OMITIR'
-    elif ubic.startswith('CDBUFFER-C'):
-        return 'BUFFER-C'
-    else:
-        return '1ER PISO'
+def map_piso_vectorizado(df):
+    """Version vectorizada de map_piso. Recibe el DataFrame stk completo
+    y devuelve una Serie con el nivel de piso para cada fila."""
+    area = df['AREA'].astype(str).str.strip().str.upper()
+    ubic = df['UBICACION'].astype(str).str.strip().str.upper()
+
+    nivel = pd.Series('1ER PISO', index=df.index)
+    nivel = nivel.mask(ubic.str.startswith('CDBUFFER-C'), 'BUFFER-C')
+    nivel = nivel.mask(area.isin(['PISO', 'PARED', 'DIS', 'ACT', 'SIN']), 'OMITIR')
+    nivel = nivel.mask(area == 'MZN02', '2DO PISO')
+    nivel = nivel.mask(area == 'MZN03', '3ER PISO')
+    nivel = nivel.mask(area == 'MZN04', '4TO PISO')
+    return nivel
 
 
-def area_asignada(row):
-    etq = str(row.get('ETIQUETA', '')).strip().upper()
-    if etq in ('INSUMOS', 'UNIFORMES'):
-        return etq
-    nivel = row.get('NIVEL_BEST', '')
-    return nivel if pd.notna(nivel) and nivel != '' else 'SIN STOCK'
+def area_asignada_vectorizado(df):
+    """Version vectorizada de area_asignada."""
+    etq = df['ETIQUETA'].astype(str).str.strip().str.upper()
+    nivel = df['NIVEL_BEST']
+
+    resultado = nivel.where(nivel.notna() & (nivel != ''), 'SIN STOCK')
+    resultado = resultado.mask(etq.isin(['INSUMOS', 'UNIFORMES']), etq)
+    return resultado
 
 
-def puede_atender(row):
-    disp = row['DISP_CONV_TOT']
-    pend = row['PEND_CONVERTIDO']
-    if pd.isna(disp) or disp == 0:
-        return 'NO'
-    if pend <= 0:
-        return 'NO'
-    if disp >= pend:
-        return 'SÍ'
-    return 'PARCIAL'
+def puede_atender_vectorizado(df):
+    """Version vectorizada de puede_atender."""
+    disp = df['DISP_CONV_TOT']
+    pend = df['PEND_CONVERTIDO']
+
+    resultado = pd.Series('PARCIAL', index=df.index)
+    resultado = resultado.mask(disp >= pend, 'SÍ')
+    resultado = resultado.mask(pend <= 0, 'NO')
+    resultado = resultado.mask(disp.isna() | (disp == 0), 'NO')
+    return resultado
 
 
 def procesar_wms(filepath):
@@ -138,7 +138,7 @@ def procesar_wms(filepath):
     stk['DISP_CONV'] = stk['DISPONIBLE'] * stk['MULT']
 
     # ── NIVELES / PISOS ──
-    stk['NIVEL'] = stk.apply(map_piso, axis=1)
+    stk['NIVEL'] = map_piso_vectorizado(stk)
 
     PISO_ORDER = {'1ER PISO': 1, '2DO PISO': 2, '3ER PISO': 3, '4TO PISO': 4,
                   'BUFFER-C': 5, 'OMITIR': 9}
@@ -175,10 +175,10 @@ def procesar_wms(filepath):
     df_full = df_full.merge(disp_tot, on='SKU', how='left')
 
     # ── ÁREA ASIGNADA ──
-    df_full['AREA_ASIGNADA'] = df_full.apply(area_asignada, axis=1)
+    df_full['AREA_ASIGNADA'] = area_asignada_vectorizado(df_full)
 
     # ── PUEDE ATENDER ──
-    df_full['PUEDE_ATENDER'] = df_full.apply(puede_atender, axis=1)
+    df_full['PUEDE_ATENDER'] = puede_atender_vectorizado(df_full)
 
     return df_full, stk_valid
 
