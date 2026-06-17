@@ -298,7 +298,22 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
     </div>
   </div>
 </div>
-    <div class="panel" id="panel-wms"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Cruce WMS en construccion</div></div></div>
+    <div class="panel" id="panel-wms">
+      <div class="section-header">
+        <div><div class="section-title">&#128260; Cruce WMS</div><div class="section-sub">Sube el Excel (PEND, STOCK, RUTA Y PRIORIDAD) para procesar la ola</div></div>
+      </div>
+      {% if role == 'admin' %}
+      <div class="table-wrap" style="padding:32px;text-align:center;">
+        <label style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">
+          &#128194; Seleccionar Excel (.xlsx)
+          <input type="file" accept=".xlsx" style="display:none;" onchange="procesarWms(this)">
+        </label>
+        <div id="wms-status" style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.5);"></div>
+      </div>
+      {% else %}
+      <div class="coming-soon"><div class="cs-icon">&#128274;</div><div class="cs-title">Solo administradores</div><div class="cs-sub">Este modulo requiere permisos de edicion</div></div>
+      {% endif %}
+    </div>
     <div class="panel" id="panel-atencion"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">% Atencion en construccion</div></div></div>
     <div class="panel" id="panel-produccion"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Produccion en construccion</div></div></div>
     <div class="panel" id="panel-ppt"><div class="coming-soon"><div class="cs-icon">&#128679;</div><div class="cs-title">Proximo modulo</div><div class="cs-sub">Generador PPT en construccion</div></div></div>
@@ -794,6 +809,33 @@ async function importarPersonal(input){
     loadPersonal();
   } else {
     alert('Error: ' + (data.error || 'desconocido'));
+  }
+  input.value = '';
+}
+
+async function procesarWms(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('wms-status');
+  statusEl.style.color = 'rgba(255,255,255,0.5)';
+  statusEl.textContent = 'Procesando...';
+
+  const formData = new FormData();
+  formData.append('archivo', file);
+
+  try {
+    const res = await fetch('/api/wms/procesar', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+      statusEl.style.color = '#fca5a5';
+      statusEl.textContent = '✗ ' + (data.error || 'Error al procesar');
+      return;
+    }
+    statusEl.style.color = '#86efac';
+    statusEl.textContent = `✓ Procesado: ${data.kpis.total_lineas} lineas, ${data.kpis.si} SI, ${data.kpis.parcial} PARCIAL, ${data.kpis.no} NO`;
+  } catch (err) {
+    statusEl.style.color = '#fca5a5';
+    statusEl.textContent = '✗ Error de conexion';
   }
   input.value = '';
 }
