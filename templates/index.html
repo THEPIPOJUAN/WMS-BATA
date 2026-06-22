@@ -327,6 +327,50 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
       <!-- Info de corrida -->
       <div id="wms-corrida-info" style="display:none;margin-top:8px;font-size:11px;color:rgba(255,255,255,0.3);"></div>
 
+      <!-- Tabla E3 -->
+      <div id="wms-tabla-section" style="display:none;margin-top:28px;">
+        <!-- Filtros -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+          <select id="wms-f-q" onchange="loadWmsTabla(0)" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:12px;font-family:inherit;">
+            <option value="">Puede Atender: Todos</option>
+            <option value="SÍ">✓ SÍ</option>
+            <option value="PARCIAL">● PARCIAL</option>
+            <option value="NO">✗ NO</option>
+          </select>
+          <input id="wms-f-r" type="text" placeholder="Filtrar por ruta..." oninput="loadWmsTabla(0)"
+            style="padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:12px;font-family:inherit;width:180px;">
+          <span id="wms-tabla-count" style="font-size:11px;color:rgba(255,255,255,0.3);margin-left:4px;"></span>
+        </div>
+        <!-- Tabla -->
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;">
+            <thead>
+              <tr style="background:rgba(220,38,38,0.2);">
+                <th style="padding:8px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;white-space:nowrap;">N° ORDEN</th>
+                <th style="padding:8px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">SKU</th>
+                <th style="padding:8px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">DESCRIPCIÓN</th>
+                <th style="padding:8px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">TIENDA</th>
+                <th style="padding:8px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">RUTA</th>
+                <th style="padding:8px 10px;text-align:right;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">PEND.</th>
+                <th style="padding:8px 10px;text-align:right;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">PEND.CONV</th>
+                <th style="padding:8px 10px;text-align:right;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">DISP.CONV</th>
+                <th style="padding:8px 10px;text-align:left;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">ÁREA</th>
+                <th style="padding:8px 10px;text-align:center;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:1px;font-size:10px;">¿ATIENDE?</th>
+              </tr>
+            </thead>
+            <tbody id="wms-tabla-body"></tbody>
+          </table>
+        </div>
+        <!-- Paginación -->
+        <div style="display:flex;align-items:center;gap:12px;margin-top:14px;justify-content:center;" id="wms-paginacion">
+          <button onclick="loadWmsTabla(wmsCurrentPage-1)" id="wms-btn-prev"
+            style="padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:12px;cursor:pointer;">← Anterior</button>
+          <span id="wms-page-info" style="font-size:12px;color:rgba(255,255,255,0.4);"></span>
+          <button onclick="loadWmsTabla(wmsCurrentPage+1)" id="wms-btn-next"
+            style="padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:12px;cursor:pointer;">Siguiente →</button>
+        </div>
+      </div>
+
       {% if role != 'admin' %}
       <div class="coming-soon"><div class="cs-icon">&#128274;</div><div class="cs-title">Solo administradores</div><div class="cs-sub">Este modulo requiere permisos de edicion</div></div>
       {% endif %}
@@ -887,6 +931,9 @@ function renderWmsHistorialTabs(historial) {
     </button>`).join('');
 }
 
+let wmsCurrentIdx = 0;
+let wmsCurrentPage = 0;
+
 function renderWmsKpis(corrida, idx) {
   const grid = document.getElementById('wms-kpi-grid');
   const info = document.getElementById('wms-corrida-info');
@@ -909,6 +956,55 @@ function renderWmsKpis(corrida, idx) {
   info.style.display = 'block';
   info.textContent = `Archivo: ${corrida.archivo} — Procesado: ${corrida.fecha}`;
   statusEl.textContent = '';
+
+  wmsCurrentIdx = idx;
+  wmsCurrentPage = 0;
+  document.getElementById('wms-f-q').value = '';
+  document.getElementById('wms-f-r').value = '';
+  loadWmsTabla(0);
+}
+
+async function loadWmsTabla(page) {
+  const q    = document.getElementById('wms-f-q').value;
+  const ruta = document.getElementById('wms-f-r').value;
+  const tbody = document.getElementById('wms-tabla-body');
+  const section = document.getElementById('wms-tabla-section');
+  const countEl = document.getElementById('wms-tabla-count');
+
+  tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:rgba(255,255,255,0.3);">Cargando...</td></tr>';
+  section.style.display = 'block';
+
+  const params = new URLSearchParams({idx: wmsCurrentIdx, page, q, ruta});
+  try {
+    const res = await fetch('/api/wms/tabla?' + params);
+    const data = await res.json();
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:#fca5a5;">${data.error}</td></tr>`;
+      return;
+    }
+    wmsCurrentPage = data.page;
+    countEl.textContent = `${data.total_rows.toLocaleString()} filas`;
+    document.getElementById('wms-page-info').textContent = `Página ${data.page+1} de ${data.total_pages}`;
+    document.getElementById('wms-btn-prev').disabled = data.page === 0;
+    document.getElementById('wms-btn-next').disabled = data.page >= data.total_pages - 1;
+
+    const COLORES_Q = {'SÍ':'#86efac','PARCIAL':'#fde68a','NO':'#fca5a5'};
+    tbody.innerHTML = data.rows.map((r,i) => `
+      <tr style="background:${i%2===0?'rgba(255,255,255,0.02)':'transparent'};border-bottom:1px solid rgba(255,255,255,0.04);">
+        <td style="padding:6px 10px;color:rgba(255,255,255,0.6);">${r.N_ORDEN}</td>
+        <td style="padding:6px 10px;color:rgba(255,255,255,0.5);font-size:10px;">${r.SKU}</td>
+        <td style="padding:6px 10px;color:rgba(255,255,255,0.7);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.DESCRIPCION}</td>
+        <td style="padding:6px 10px;color:rgba(255,255,255,0.5);">${r.TDA_DESTINO}</td>
+        <td style="padding:6px 10px;color:rgba(255,255,255,0.5);">${r.RUTA}</td>
+        <td style="padding:6px 10px;text-align:right;color:rgba(255,255,255,0.6);">${Number(r.PENDIENTE).toLocaleString()}</td>
+        <td style="padding:6px 10px;text-align:right;color:rgba(255,255,255,0.6);">${Number(r.PEND_CONVERTIDO).toLocaleString()}</td>
+        <td style="padding:6px 10px;text-align:right;color:rgba(255,255,255,0.6);">${Number(r.DISP_CONV_TOT).toLocaleString()}</td>
+        <td style="padding:6px 10px;color:rgba(255,255,255,0.5);font-size:10px;">${r.AREA_ASIGNADA}</td>
+        <td style="padding:6px 10px;text-align:center;font-weight:700;color:${COLORES_Q[r.PUEDE_ATENDER]||'#fff'};">${r.PUEDE_ATENDER}</td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:#fca5a5;">Error de conexion</td></tr>';
+  }
 }
 
   loadPrescrito();
