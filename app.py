@@ -371,7 +371,8 @@ def get_wms_historial():
 @admin_required
 def procesar_wms_endpoint():
     from wms_logic import procesar_wms, resumen_kpis
-    import datetime
+    import datetime, json
+    import pandas as pd
 
     if 'archivo' not in request.files:
         return jsonify({"error": "No se envio archivo"}), 400
@@ -389,19 +390,86 @@ def procesar_wms_endpoint():
 
     kpis = resumen_kpis(df_full)
 
+    # Guardar tabla en archivo separado (rotacion 0/1/2)
+    data = load_data()
+    historial = data.get("wms_historial", [])
+    nuevo_idx = 0  # siempre ocupa el slot 0, los otros se corren
+
+    COLS = ['N_ORDEN','SKU','DESCRIPCION','TDA_DESTINO','RUTA','PENDIENTE',
+            'PEND_CONVERTIDO','DISP_CONV_TOT','AREA_ASIGNADA','PUEDE_ATENDER']
+    sub = df_full[COLS].copy()
+    sub['N_ORDEN']        = sub['N_ORDEN'].fillna('').astype(str)
+    sub['SKU']            = sub['SKU'].astype(str)
+    sub['DESCRIPCION']    = sub['DESCRIPCION'].fillna('').astype(str).str[:40]
+    sub['TDA_DESTINO']    = sub['TDA_DESTINO'].fillna('').astype(str)
+    sub['RUTA']           = sub['RUTA'].fillna('').astype(str)
+    sub['PENDIENTE']      = pd.to_numeric(sub['PENDIENTE'], errors='coerce').fillna(0).astype(int)
+    sub['PEND_CONVERTIDO']= pd.to_numeric(sub['PEND_CONVERTIDO'], errors='coerce').fillna(0).astype(int)
+    sub['DISP_CONV_TOT']  = pd.to_numeric(sub['DISP_CONV_TOT'], errors='coerce').fillna(0).astype(int)
+    sub['AREA_ASIGNADA']  = sub['AREA_ASIGNADA'].fillna('').astype(str)
+    sub['PUEDE_ATENDER']  = sub['PUEDE_ATENDER'].astype(str)
+
+    # Renombrar slots: el nuevo ocupa wms_tabla_0, los anteriores suben de indice
+    for i in range(min(len(historial), 1), -1, -1):
+        src = f"wms_tabla_{i}.json"
+        dst = f"wms_tabla_{i+1}.json"
+        if os.path.exists(src):
+            os.replace(src, dst)
+    # Limpiar slot 3+ si existe
+    if os.path.exists("wms_tabla_3.json"):
+        os.remove("wms_tabla_3.json")
+
+    with open("wms_tabla_0.json", "w", encoding="utf-8") as f:
+        json.dump(sub.to_dict('records'), f, ensure_ascii=False)
+
     nuevo_resultado = {
         "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "archivo": archivo.filename,
         "kpis": kpis,
+        "tabla_file": "wms_tabla_0.json",
     }
 
-    data = load_data()
-    historial = data.get("wms_historial", [])
     historial.insert(0, nuevo_resultado)
     data["wms_historial"] = historial[:3]
     save_data(data)
 
     return jsonify({"ok": True, "kpis": kpis})
+
+
+@app.route("/api/wms/tabla", methods=["GET"])
+@login_required
+def get_wms_tabla():
+    import json
+    idx   = int(request.args.get("idx", 0))
+    page  = int(request.args.get("page", 0))
+    filtro_q = request.args.get("q", "").strip().upper()      # SÍ / PARCIAL / NO / ""
+    filtro_r = request.args.get("ruta", "").strip().upper()   # nombre de ruta o ""
+    PAGE_SIZE = 500
+
+    tabla_file = f"wms_tabla_{idx}.json"
+    if not os.path.exists(tabla_file):
+        return jsonify({"error": "Tabla no disponible. Vuelve a procesar el Excel."}), 404
+
+    with open(tabla_file, encoding="utf-8") as f:
+        rows = json.load(f)
+
+    # Filtrar
+    if filtro_q:
+        rows = [r for r in rows if r.get("PUEDE_ATENDER","") == filtro_q]
+    if filtro_r:
+        rows = [r for r in rows if filtro_r in str(r.get("RUTA","")).upper()]
+
+    total = len(rows)
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = max(0, min(page, total_pages - 1))
+    chunk = rows[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
+
+    return jsonify({
+        "rows": chunk,
+        "page": page,
+        "total_pages": total_pages,
+        "total_rows": total,
+    })
 
 
 if __name__ == "__main__":
