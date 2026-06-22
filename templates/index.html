@@ -300,17 +300,34 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
 </div>
     <div class="panel" id="panel-wms">
       <div class="section-header">
-        <div><div class="section-title">&#128260; Cruce WMS</div><div class="section-sub">Sube el Excel (PEND, STOCK, RUTA Y PRIORIDAD) para procesar la ola</div></div>
-      </div>
-      {% if role == 'admin' %}
-      <div class="table-wrap" style="padding:32px;text-align:center;">
-        <label style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">
-          &#128194; Seleccionar Excel (.xlsx)
+        <div><div class="section-title">&#128260; Cruce WMS</div><div class="section-sub">Analisis prescrito vs stock — historial ultimas 3 corridas</div></div>
+        {% if role == 'admin' %}
+        <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+          &#128194; Nueva corrida
           <input type="file" accept=".xlsx" style="display:none;" onchange="procesarWms(this)">
         </label>
-        <div id="wms-status" style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.5);"></div>
+        {% endif %}
       </div>
-      {% else %}
+
+      <!-- Selector historial -->
+      <div id="wms-historial-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;"></div>
+
+      <!-- Status mensaje -->
+      <div id="wms-status" style="margin-bottom:16px;font-size:13px;color:rgba(255,255,255,0.5);min-height:18px;"></div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" id="wms-kpi-grid" style="display:none;">
+        <div class="kpi-card"><div class="kpi-label">Total Lineas</div><div class="kpi-value" id="wkpi-total">—</div><div class="kpi-sub">ordenes pendientes</div></div>
+        <div class="kpi-card kpi-green"><div class="kpi-label">&#10003; SI Atiende</div><div class="kpi-value" id="wkpi-si">—</div><div class="kpi-sub">con stock suficiente</div></div>
+        <div class="kpi-card kpi-yellow"><div class="kpi-label">&#9679; PARCIAL</div><div class="kpi-value" id="wkpi-parcial">—</div><div class="kpi-sub">stock insuficiente</div></div>
+        <div class="kpi-card kpi-red"><div class="kpi-label">&#10007; NO Atiende</div><div class="kpi-value" id="wkpi-no">—</div><div class="kpi-sub">sin stock</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pend. Convertido</div><div class="kpi-value" id="wkpi-pconv" style="font-size:20px;">—</div><div class="kpi-sub">unidades totales</div></div>
+      </div>
+
+      <!-- Info de corrida -->
+      <div id="wms-corrida-info" style="display:none;margin-top:8px;font-size:11px;color:rgba(255,255,255,0.3);"></div>
+
+      {% if role != 'admin' %}
       <div class="coming-soon"><div class="cs-icon">&#128274;</div><div class="cs-title">Solo administradores</div><div class="cs-sub">Este modulo requiere permisos de edicion</div></div>
       {% endif %}
     </div>
@@ -344,6 +361,7 @@ function showPanel(name, el) {
   document.getElementById('topbar-title').textContent = titles[name][0];
   document.getElementById('topbar-sub').textContent = titles[name][1];
   if(el) el.classList.add('active');
+  if(name === 'wms') loadWmsHistorial();
 }
 
 function fmt(n){return n?Number(n).toLocaleString('es-PE'):'0';}
@@ -818,7 +836,7 @@ async function procesarWms(input) {
   if (!file) return;
   const statusEl = document.getElementById('wms-status');
   statusEl.style.color = 'rgba(255,255,255,0.5)';
-  statusEl.textContent = 'Procesando...';
+  statusEl.textContent = '⏳ Procesando... (puede tardar hasta 30 segundos)';
 
   const formData = new FormData();
   formData.append('archivo', file);
@@ -832,13 +850,67 @@ async function procesarWms(input) {
       return;
     }
     statusEl.style.color = '#86efac';
-    statusEl.textContent = `✓ Procesado: ${data.kpis.total_lineas} lineas, ${data.kpis.si} SI, ${data.kpis.parcial} PARCIAL, ${data.kpis.no} NO`;
+    statusEl.textContent = '✓ Corrida guardada correctamente';
+    await loadWmsHistorial();
   } catch (err) {
     statusEl.style.color = '#fca5a5';
     statusEl.textContent = '✗ Error de conexion';
   }
   input.value = '';
 }
+
+async function loadWmsHistorial() {
+  try {
+    const res = await fetch('/api/wms/historial');
+    const data = await res.json();
+    const historial = data.historial || [];
+    renderWmsHistorialTabs(historial);
+    if (historial.length > 0) renderWmsKpis(historial[0], 0);
+  } catch(e) {}
+}
+
+function renderWmsHistorialTabs(historial) {
+  const tabs = document.getElementById('wms-historial-tabs');
+  if (!tabs) return;
+  if (historial.length === 0) {
+    tabs.innerHTML = '<span style="font-size:12px;color:rgba(255,255,255,0.3);">Sin corridas guardadas — sube un Excel para comenzar</span>';
+    return;
+  }
+  tabs.innerHTML = historial.map((h, i) => `
+    <button onclick="renderWmsKpis(${JSON.stringify(h).replace(/'/g,"\\'")} ,${i})"
+      id="wms-tab-${i}"
+      style="padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
+             background:${i===0?'rgba(220,38,38,0.25)':'rgba(255,255,255,0.05)'};
+             color:${i===0?'#fff':'rgba(255,255,255,0.5)'};font-size:11px;cursor:pointer;font-family:inherit;">
+      ${i===0?'🔴 ':''}${h.archivo.substring(0,20)}...<br>
+      <span style="font-size:10px;opacity:.6;">${h.fecha}</span>
+    </button>`).join('');
+}
+
+function renderWmsKpis(corrida, idx) {
+  const grid = document.getElementById('wms-kpi-grid');
+  const info = document.getElementById('wms-corrida-info');
+  const statusEl = document.getElementById('wms-status');
+  if (!grid) return;
+
+  document.querySelectorAll('[id^="wms-tab-"]').forEach((btn, i) => {
+    btn.style.background = i === idx ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.05)';
+    btn.style.color = i === idx ? '#fff' : 'rgba(255,255,255,0.5)';
+  });
+
+  const k = corrida.kpis;
+  document.getElementById('wkpi-total').textContent = k.total_lineas.toLocaleString();
+  document.getElementById('wkpi-si').textContent = k.si.toLocaleString();
+  document.getElementById('wkpi-parcial').textContent = k.parcial.toLocaleString();
+  document.getElementById('wkpi-no').textContent = k.no.toLocaleString();
+  document.getElementById('wkpi-pconv').textContent = k.pend_conv_total.toLocaleString();
+
+  grid.style.display = 'grid';
+  info.style.display = 'block';
+  info.textContent = `Archivo: ${corrida.archivo} — Procesado: ${corrida.fecha}`;
+  statusEl.textContent = '';
+}
+
   loadPrescrito();
   function toggleDownload(){
   document.getElementById('download-menu').classList.toggle('open');
