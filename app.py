@@ -359,6 +359,13 @@ def importar_personal():
     return jsonify({"ok": True, "total": contador})
 
 
+@app.route("/api/wms/historial", methods=["GET"])
+@login_required
+def get_wms_historial():
+    data = load_data()
+    return jsonify({"historial": data.get("wms_historial", [])})
+
+
 @app.route("/api/wms/procesar", methods=["POST"])
 @login_required
 @admin_required
