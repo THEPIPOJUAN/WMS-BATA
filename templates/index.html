@@ -301,12 +301,15 @@ body{font-family:'Inter',sans-serif;background:#0f0f1a;color:#e2e8f0;min-height:
     <div class="panel" id="panel-wms">
       <div class="section-header">
         <div><div class="section-title">&#128260; Cruce WMS</div><div class="section-sub">Analisis prescrito vs stock — historial ultimas 3 corridas</div></div>
-        {% if role == 'admin' %}
-        <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
-          &#128194; Nueva corrida
-          <input type="file" accept=".xlsx" style="display:none;" onchange="procesarWms(this)">
-        </label>
-        {% endif %}
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button id="wms-btn-excel" onclick="descargarWmsExcel()" style="display:none;padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">&#128190; Descargar Excel</button>
+          {% if role == 'admin' %}
+          <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+            &#128194; Nueva corrida
+            <input type="file" accept=".xlsx" style="display:none;" onchange="procesarWms(this)">
+          </label>
+          {% endif %}
+        </div>
       </div>
 
       <!-- Selector historial -->
@@ -957,6 +960,10 @@ function renderWmsKpis(corrida, idx) {
   info.textContent = `Archivo: ${corrida.archivo} — Procesado: ${corrida.fecha}`;
   statusEl.textContent = '';
 
+  // Mostrar botón de descarga
+  const btnExcel = document.getElementById('wms-btn-excel');
+  if (btnExcel) btnExcel.style.display = 'inline-block';
+
   wmsCurrentIdx = idx;
   wmsCurrentPage = 0;
   document.getElementById('wms-f-q').value = '';
@@ -964,7 +971,11 @@ function renderWmsKpis(corrida, idx) {
   loadWmsTabla(0);
 }
 
-async function loadWmsTabla(page) {
+function descargarWmsExcel() {
+  window.location.href = `/api/wms/excel?idx=${wmsCurrentIdx}`;
+}
+
+
   const q    = document.getElementById('wms-f-q').value;
   const ruta = document.getElementById('wms-f-r').value;
   const tbody = document.getElementById('wms-tabla-body');
