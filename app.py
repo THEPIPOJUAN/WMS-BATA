@@ -395,13 +395,15 @@ def procesar_wms_endpoint():
     historial = data.get("wms_historial", [])
     nuevo_idx = 0  # siempre ocupa el slot 0, los otros se corren
 
-    COLS = ['N_ORDEN','SKU','DESCRIPCION','TDA_DESTINO','RUTA','PENDIENTE',
+    COLS = ['N_ORDEN','SKU','DESCRIPCION','TDA_DESTINO','NOMBRE_TIENDA','LIMA_PROV','RUTA','PENDIENTE',
             'PEND_CONVERTIDO','DISP_CONV_TOT','AREA_ASIGNADA','PUEDE_ATENDER']
     sub = df_full[COLS].copy()
     sub['N_ORDEN']        = sub['N_ORDEN'].fillna('').astype(str)
     sub['SKU']            = sub['SKU'].astype(str)
     sub['DESCRIPCION']    = sub['DESCRIPCION'].fillna('').astype(str).str[:40]
     sub['TDA_DESTINO']    = sub['TDA_DESTINO'].fillna('').astype(str)
+    sub['NOMBRE_TIENDA']  = sub['NOMBRE_TIENDA'].fillna('').astype(str).str[:40]
+    sub['LIMA_PROV']      = sub['LIMA_PROV'].fillna('').astype(str)
     sub['RUTA']           = sub['RUTA'].fillna('').astype(str)
     sub['PENDIENTE']      = pd.to_numeric(sub['PENDIENTE'], errors='coerce').fillna(0).astype(int)
     sub['PEND_CONVERTIDO']= pd.to_numeric(sub['PEND_CONVERTIDO'], errors='coerce').fillna(0).astype(int)
@@ -421,6 +423,19 @@ def procesar_wms_endpoint():
 
     with open("wms_tabla_0.json", "w", encoding="utf-8") as f:
         json.dump(sub.to_dict('records'), f, ensure_ascii=False)
+
+    # Guardar stock para hoja STOCK VS PENDIENTE
+    stk_sub = stk_valid[['SKU','AREA','CANT_ACTUAL']].copy()
+    stk_sub['SKU'] = stk_sub['SKU'].astype(str)
+    stk_sub['AREA'] = stk_sub['AREA'].astype(str)
+    stk_sub['CANT_ACTUAL'] = pd.to_numeric(stk_sub['CANT_ACTUAL'], errors='coerce').fillna(0).astype(int)
+    # Rotar slots stk igual que tabla
+    for i in range(min(len(historial), 1), -1, -1):
+        src = f"wms_stk_{i}.json"; dst = f"wms_stk_{i+1}.json"
+        if os.path.exists(src): os.replace(src, dst)
+    if os.path.exists("wms_stk_3.json"): os.remove("wms_stk_3.json")
+    with open("wms_stk_0.json", "w", encoding="utf-8") as f:
+        json.dump(stk_sub.to_dict('records'), f, ensure_ascii=False)
 
     nuevo_resultado = {
         "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -470,6 +485,202 @@ def get_wms_tabla():
         "total_pages": total_pages,
         "total_rows": total,
     })
+
+
+@app.route("/api/wms/excel")
+@login_required
+def download_wms_excel():
+    import json, io
+    from collections import defaultdict
+    from openpyxl import Workbook
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    idx = int(request.args.get("idx", 0))
+    tabla_file = f"wms_tabla_{idx}.json"
+    if not os.path.exists(tabla_file):
+        return jsonify({"error": "Tabla no disponible. Vuelve a procesar el Excel."}), 404
+
+    data = load_data()
+    historial = data.get("wms_historial", [])
+    if idx >= len(historial):
+        return jsonify({"error": "Corrida no encontrada"}), 404
+
+    meta  = historial[idx]
+    kpis  = meta["kpis"]
+    fecha = meta["fecha"]
+    archivo_origen = meta["archivo"]
+
+    with open(tabla_file, encoding="utf-8") as f:
+        rows = json.load(f)
+
+    ROJO="991B1B"; ROJO_M="7F1D1D"; ROJO_C="FEE2E2"
+    VERDE="065F46"; VERDE_C="D1FAE5"
+    AMARI="92400E"; AMARI_C="FEF3C7"
+    NEGRO="111827"; BLANCO="FFFFFF"; GRIS="F9FAFB"
+    thin = Side(style="thin", color="E5E7EB")
+    brd  = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+    def cs(cell, bg, fg="FFFFFF", bold=False, size=10, align="center"):
+        cell.fill = PatternFill("solid", fgColor=bg)
+        cell.font = Font(bold=bold, color=fg, size=size, name="Calibri")
+        cell.alignment = Alignment(horizontal=align, vertical="center", wrap_text=False)
+        cell.border = brd
+
+    wb = Workbook()
+
+    # ── HOJA 1: RESUMEN ──
+    ws1 = wb.active; ws1.title = "RESUMEN"
+    kpi_data = [("TOTAL LINEAS",kpis['total_lineas'],NEGRO),("SI ATIENDE",kpis['si'],"166534"),
+                ("PARCIAL",kpis['parcial'],"854D0E"),("NO ATIENDE",kpis['no'],ROJO),
+                ("PEND.CONV",kpis['pend_conv_total'],"1E40AF")]
+    col = 1
+    for title, val, color in kpi_data:
+        ws1.merge_cells(start_row=1,start_column=col,end_row=1,end_column=col+1)
+        ws1.merge_cells(start_row=2,start_column=col,end_row=2,end_column=col+1)
+        cs(ws1.cell(row=1,column=col,value=title), "000000","AAAAAA",size=8)
+        cs(ws1.cell(row=2,column=col,value=val),   "000000",color,bold=True,size=14)
+        col += 2
+    ws1.row_dimensions[1].height=16; ws1.row_dimensions[2].height=26; ws1.row_dimensions[3].height=6
+    ws1.merge_cells("A4:F4")
+    cs(ws1.cell(row=4,column=1,value=f"RESUMEN POR RUTA — {archivo_origen} — {fecha}"),ROJO,BLANCO,bold=True,size=11)
+    ws1.row_dimensions[4].height=20
+    for i,h in enumerate(["TIENDA","NOMBRE","TOTAL","SÍ ATIENDE","PARCIAL","NO ATIENDE","% ATENCIÓN"],1):
+        cs(ws1.cell(row=5,column=i,value=h),ROJO_M,BLANCO,bold=True,size=9)
+    ws1.row_dimensions[5].height=18
+
+    resumen = defaultdict(lambda:{'SI':0,'PARCIAL':0,'NO':0,'TOTAL':0,'NOMBRE':''})
+    for r in rows:
+        tda  = str(r.get('TDA_DESTINO','')).strip() or 'SIN TIENDA'
+        nom  = str(r.get('NOMBRE_TIENDA','')).strip()
+        q    = str(r.get('PUEDE_ATENDER','')).strip()
+        resumen[tda]['NOMBRE'] = nom
+        resumen[tda]['TOTAL'] += 1
+        if q=='SÍ': resumen[tda]['SI'] += 1
+        elif q=='PARCIAL': resumen[tda]['PARCIAL'] += 1
+        else: resumen[tda]['NO'] += 1
+    rutas = sorted(resumen.keys())
+
+    for ri, tda in enumerate(rutas, 6):
+        v = resumen[tda]
+        pct = round((v['SI']+v['PARCIAL'])/v['TOTAL']*100,1) if v['TOTAL'] else 0
+        bg = GRIS if ri%2==0 else BLANCO
+        for ci,(val,al,fg) in enumerate(zip(
+            [tda, v['NOMBRE'], v['TOTAL'], v['SI'], v['PARCIAL'], v['NO'], f"{pct}%"],
+            ["center","left","center","center","center","center","center"],
+            [NEGRO,NEGRO,NEGRO,VERDE,AMARI,ROJO,NEGRO]),1):
+            cs(ws1.cell(row=ri,column=ci,value=val),bg,fg,size=10,align=al)
+        ws1.row_dimensions[ri].height=18
+
+    tr = 6+len(rutas)
+    total_lin = len(rows)
+    for ci,val in enumerate(["TOTAL","",total_lin,kpis['si'],kpis['parcial'],kpis['no'],
+        f"{round((kpis['si']+kpis['parcial'])/total_lin*100,1)}%"],1):
+        cs(ws1.cell(row=tr,column=ci,value=val),ROJO,BLANCO,bold=True,size=10)
+    ws1.row_dimensions[tr].height=20
+    for i,w in enumerate([10,28,10,12,10,12,12],1):
+        ws1.column_dimensions[get_column_letter(i)].width=w
+
+    # ── HOJA 2: DETALLE ──
+    ws2 = wb.create_sheet("DETALLE")
+    ws2.merge_cells("A1:L1")
+    cs(ws2.cell(row=1,column=1,value=f"DETALLE COMPLETO — {archivo_origen} — {fecha}"),ROJO,BLANCO,bold=True,size=11)
+    ws2.row_dimensions[1].height=20
+    for i,h in enumerate(["N° ORDEN","SKU","DESCRIPCIÓN","TIENDA","NOMBRE TIENDA","LIMA/PROV","RUTA","PENDIENTE","PEND.CONV","DISP.CONV","ÁREA","¿ATIENDE?"],1):
+        cs(ws2.cell(row=2,column=i,value=h),ROJO_M,BLANCO,bold=True,size=9)
+    ws2.row_dimensions[2].height=16
+
+    COLS_DET=['N_ORDEN','SKU','DESCRIPCION','TDA_DESTINO','NOMBRE_TIENDA','LIMA_PROV','RUTA','PENDIENTE','PEND_CONVERTIDO','DISP_CONV_TOT','AREA_ASIGNADA','PUEDE_ATENDER']
+    COLOR_Q={'SÍ':(VERDE_C,VERDE),'PARCIAL':(AMARI_C,AMARI),'NO':(ROJO_C,ROJO)}
+    for ri,r in enumerate(rows,3):
+        bg=GRIS if ri%2==0 else BLANCO
+        for ci,col_key in enumerate(COLS_DET,1):
+            val=r.get(col_key,'')
+            if col_key=='PUEDE_ATENDER':
+                cbg,cfg=COLOR_Q.get(str(val),(bg,NEGRO))
+                cs(ws2.cell(row=ri,column=ci,value=val),cbg,cfg,bold=True,size=9,align="center")
+            else:
+                al="left" if ci in(3,5,6,7,11) else "center"
+                cs(ws2.cell(row=ri,column=ci,value=val),bg,NEGRO,size=9,align=al)
+        ws2.row_dimensions[ri].height=15
+    for i,w in enumerate([12,16,30,8,28,10,20,10,10,10,14,10],1):
+        ws2.column_dimensions[get_column_letter(i)].width=w
+
+    # ── HOJA 3: STOCK VS PENDIENTE ──
+    ws3 = wb.create_sheet("STOCK VS PENDIENTE")
+    ws3.merge_cells("A1:N1")
+    cs(ws3.cell(row=1,column=1,value="STOCK VS PENDIENTE — SKUs SIN STOCK PARA OLA WMS"),ROJO,BLANCO,bold=True,size=13)
+    ws3.row_dimensions[1].height=24
+
+    # Cargar stock
+    stk_file = f"wms_stk_{idx}.json"
+    stk_rows = []
+    if os.path.exists(stk_file):
+        with open(stk_file, encoding="utf-8") as f:
+            stk_rows = json.load(f)
+
+    # SKUs sin stock (AREA_ASIGNADA == 'SIN STOCK')
+    from collections import defaultdict
+    sin_stock_pend = defaultdict(int)
+    for r in rows:
+        if str(r.get('AREA_ASIGNADA','')).strip() == 'SIN STOCK':
+            sku = str(r.get('SKU',''))
+            sin_stock_pend[sku] += int(r.get('PEND_CONVERTIDO',0) or 0)
+
+    # Stock por SKU+AREA
+    stk_area = defaultdict(lambda: defaultdict(int))
+    for s in stk_rows:
+        stk_area[str(s['SKU'])][str(s['AREA'])] += int(s.get('CANT_ACTUAL',0) or 0)
+
+    # Ordenar por pendiente desc
+    sin_stock_sorted = sorted(sin_stock_pend.items(), key=lambda x: -x[1])
+
+    # Determinar max áreas para headers dinámicos
+    max_areas = max((len(stk_area[sku]) for sku,_ in sin_stock_sorted), default=1) if sin_stock_sorted else 1
+    max_areas = max(max_areas, 1)
+
+    hdrs = ['SKU','CANT. PEND. CONV.']
+    for i in range(1, max_areas+1):
+        hdrs += [f'ÁREA {i}', f'QTY ÁREA {i}']
+
+    for ci,h in enumerate(hdrs,1):
+        c = ws3.cell(row=2, column=ci, value=h)
+        cs(c, ROJO_M, BLANCO, bold=True, size=9)
+    ws3.row_dimensions[2].height=16
+
+    NARANJA_C = "FFF3E0"; NARANJA = "E65100"
+    ROSA_C = "FFCDD2"; ROSA = "9C0006"
+
+    if sin_stock_sorted:
+        for ri, (sku, pconv) in enumerate(sin_stock_sorted, 3):
+            bg = GRIS if ri%2==0 else BLANCO
+            cs(ws3.cell(row=ri,column=1,value=sku), ROSA_C, NEGRO, size=9, align="left")
+            cs(ws3.cell(row=ri,column=2,value=pconv), ROSA_C, ROSA, bold=True, size=9)
+            areas = sorted(stk_area[sku].items(), key=lambda x: -x[1])
+            if not areas:
+                cs(ws3.cell(row=ri,column=3,value='SIN UBICACION'), "EEEEEE","757575",size=9)
+                cs(ws3.cell(row=ri,column=4,value=0), "EEEEEE",NEGRO,size=9)
+            else:
+                for ai,(area_name,area_qty) in enumerate(areas):
+                    col_a = 3 + ai*2; col_q = 4 + ai*2
+                    cs(ws3.cell(row=ri,column=col_a,value=area_name), NARANJA_C, NEGRO, bold=True, size=9)
+                    cs(ws3.cell(row=ri,column=col_q,value=area_qty), NARANJA_C, NARANJA, size=9)
+            ws3.row_dimensions[ri].height=15
+    else:
+        c = ws3.cell(row=3,column=1,value='No hay SKUs sin stock ✓')
+        cs(c, "D1FAE5", VERDE, bold=True, size=10, align="left")
+
+    # Anchos automáticos hoja 3
+    ws3.column_dimensions['A'].width=18
+    ws3.column_dimensions['B'].width=18
+    for i in range(3, 3+max_areas*2, 2):
+        ws3.column_dimensions[get_column_letter(i)].width=14
+        ws3.column_dimensions[get_column_letter(i+1)].width=10
+
+    out=io.BytesIO(); wb.save(out); out.seek(0)
+    fname = f"cruce_wms_{fecha[:10]}.xlsx"
+    return send_file(out, download_name=fname, as_attachment=True,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 if __name__ == "__main__":
