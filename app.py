@@ -422,7 +422,7 @@ def procesar_wms_endpoint():
         os.remove("wms_tabla_3.json")
 
     with open("wms_tabla_0.json", "w", encoding="utf-8") as f:
-        json.dump(sub.to_dict('records'), f, ensure_ascii=False)
+        f.write(sub.to_json(orient='records', force_ascii=False))
 
     # Guardar stock para hoja STOCK VS PENDIENTE
     stk_sub = stk_valid[['SKU','AREA','CANT_ACTUAL']].copy()
@@ -435,7 +435,7 @@ def procesar_wms_endpoint():
         if os.path.exists(src): os.replace(src, dst)
     if os.path.exists("wms_stk_3.json"): os.remove("wms_stk_3.json")
     with open("wms_stk_0.json", "w", encoding="utf-8") as f:
-        json.dump(stk_sub.to_dict('records'), f, ensure_ascii=False)
+        f.write(stk_sub.to_json(orient='records', force_ascii=False))
 
     nuevo_resultado = {
         "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
