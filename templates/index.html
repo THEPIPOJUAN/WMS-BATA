@@ -975,7 +975,7 @@ function descargarWmsExcel() {
   window.location.href = `/api/wms/excel?idx=${wmsCurrentIdx}`;
 }
 
-
+async function loadWmsTabla(page) {
   const q    = document.getElementById('wms-f-q').value;
   const ruta = document.getElementById('wms-f-r').value;
   const tbody = document.getElementById('wms-tabla-body');
