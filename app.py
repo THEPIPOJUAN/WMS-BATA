@@ -581,28 +581,21 @@ def download_wms_excel():
     for i,w in enumerate([10,28,10,12,10,12,12],1):
         ws1.column_dimensions[get_column_letter(i)].width=w
 
-    # ── HOJA 2: DETALLE ──
+    # ── HOJA 2: DETALLE (sin estilos por fila para evitar SIGKILL) ──
     ws2 = wb.create_sheet("DETALLE")
-    ws2.merge_cells("A1:L1")
-    cs(ws2.cell(row=1,column=1,value=f"DETALLE COMPLETO — {archivo_origen} — {fecha}"),ROJO,BLANCO,bold=True,size=11)
-    ws2.row_dimensions[1].height=20
-    for i,h in enumerate(["N° ORDEN","SKU","DESCRIPCIÓN","TIENDA","NOMBRE TIENDA","LIMA/PROV","RUTA","PENDIENTE","PEND.CONV","DISP.CONV","ÁREA","¿ATIENDE?"],1):
-        cs(ws2.cell(row=2,column=i,value=h),ROJO_M,BLANCO,bold=True,size=9)
-    ws2.row_dimensions[2].height=16
+    hdr_font = Font(bold=True, color=BLANCO, size=9, name="Calibri")
+    hdr_fill = PatternFill("solid", fgColor=ROJO_M)
+    hdr_alig = Alignment(horizontal="center", vertical="center")
+    HDRS_DET = ["N° ORDEN","SKU","DESCRIPCIÓN","TIENDA","NOMBRE TIENDA","LIMA/PROV","RUTA","PENDIENTE","PEND.CONV","DISP.CONV","ÁREA","¿ATIENDE?"]
+    for ci,h in enumerate(HDRS_DET,1):
+        c = ws2.cell(row=1,column=ci,value=h)
+        c.font=hdr_font; c.fill=hdr_fill; c.alignment=hdr_alig
+    ws2.row_dimensions[1].height=16
 
     COLS_DET=['N_ORDEN','SKU','DESCRIPCION','TDA_DESTINO','NOMBRE_TIENDA','LIMA_PROV','RUTA','PENDIENTE','PEND_CONVERTIDO','DISP_CONV_TOT','AREA_ASIGNADA','PUEDE_ATENDER']
-    COLOR_Q={'SÍ':(VERDE_C,VERDE),'PARCIAL':(AMARI_C,AMARI),'NO':(ROJO_C,ROJO)}
-    for ri,r in enumerate(rows,3):
-        bg=GRIS if ri%2==0 else BLANCO
+    for ri,r in enumerate(rows,2):
         for ci,col_key in enumerate(COLS_DET,1):
-            val=r.get(col_key,'')
-            if col_key=='PUEDE_ATENDER':
-                cbg,cfg=COLOR_Q.get(str(val),(bg,NEGRO))
-                cs(ws2.cell(row=ri,column=ci,value=val),cbg,cfg,bold=True,size=9,align="center")
-            else:
-                al="left" if ci in(3,5,6,7,11) else "center"
-                cs(ws2.cell(row=ri,column=ci,value=val),bg,NEGRO,size=9,align=al)
-        ws2.row_dimensions[ri].height=15
+            ws2.cell(row=ri,column=ci,value=r.get(col_key,''))
     for i,w in enumerate([12,16,30,8,28,10,20,10,10,10,14,10],1):
         ws2.column_dimensions[get_column_letter(i)].width=w
 
