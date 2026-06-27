@@ -1,24 +1,28 @@
 """
 wms_logic.py — WMS-BATA
-Lectura con openpyxl read_only (sin parsear estilos) para evitar SIGKILL en Render.
+Lectura con openpyxl read_only iterando fila por fila para evitar SIGKILL en Render.
 """
 import pandas as pd
 import openpyxl
 
 
 def leer_hoja_readonly(filepath, sheet_name):
-    """Lee una hoja de Excel con openpyxl en modo read_only (liviano en memoria)."""
+    """Lee una hoja fila por fila (sin list() masivo) para no saturar RAM."""
     wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
     if sheet_name not in wb.sheetnames:
         wb.close()
         raise ValueError(f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {wb.sheetnames}")
     ws = wb[sheet_name]
-    rows = list(ws.iter_rows(values_only=True))
+    header = None
+    data = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0:
+            header = row
+        else:
+            data.append(row)
     wb.close()
-    if not rows:
+    if header is None:
         return pd.DataFrame()
-    header = rows[0]
-    data   = rows[1:]
     return pd.DataFrame(data, columns=header)
 
 
