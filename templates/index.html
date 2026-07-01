@@ -640,8 +640,9 @@ function renderPersonalTable(){
     const IS_ADMIN_JS = document.querySelector('.badge-edit') !== null;
     const dragAttr = IS_ADMIN_JS ? `draggable="true" data-pid="${p.id}"` : '';
     const dragHandle = IS_ADMIN_JS ? `<span class="drag-handle" title="Arrastrar para reordenar">&#9776;</span>` : '';
+    const deleteBtn = IS_ADMIN_JS ? `<span onclick="deletePersonal(${p.id})" title="Quitar" style="color:#f87171;cursor:pointer;margin-left:6px;font-weight:700;font-size:14px;">&times;</span>` : '';
     bhtml += `<tr ${dragAttr} class="${IS_ADMIN_JS?'p-row-draggable':''}">
-      <td style="text-align:center;cursor:${IS_ADMIN_JS?'grab':'default'};">${dragHandle}</td>
+      <td style="text-align:center;cursor:${IS_ADMIN_JS?'grab':'default'};white-space:nowrap;">${dragHandle}${deleteBtn}</td>
       <td style="text-align:left;color:rgba(255,255,255,0.4);font-size:12px;">${idx+1}</td>
       <td style="text-align:left;font-size:12px;color:rgba(255,255,255,0.6);">${p.dni}</td>
       <td style="text-align:left;font-weight:600;font-size:13px;">${p.nombre}</td>
@@ -805,6 +806,11 @@ function showAddPersonal(){
 }
 function closeAddPersonal(){
   document.getElementById('modal-personal').style.display='none';
+}
+function deletePersonal(id){
+  if(!confirm('¿Quitar esta persona de la lista?')) return;
+  personalData = personalData.filter(p => p.id !== id);
+  renderPersonalTable();
 }
 function addPersonal(){
   const dni = document.getElementById('new-dni').value.trim();
